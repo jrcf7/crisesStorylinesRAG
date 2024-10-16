@@ -1,0 +1,103 @@
+
+
+
+.idea/
+
+config.py
+
+
+#
+# Project specific excludes
+#
+
+*.log
+*.key 
+*.env
+
+med_news.txt
+
+example_sergio.sh
+example_sergio_summary.sh
+
+screenlog.0
+
+/prove/
+/prove/*
+
+*.json
+
+/__pycache__/
+/__pychache__/*
+
+/vast_api_logs/
+/vast_api_logs/*
+
+*.tpl
+
+
+./.settings/
+
+
+
+
+*.Rhistory
+*.Rproj
+*.RData
+
+tomcat
+
+#
+# Default excludes
+#
+
+# Binaries
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.war
+*.ear
+*.sar
+*.class
+
+# Maven 
+target/
+
+# IntelliJ project files 
+*.iml
+*.iws
+*.ipr
+.idea/
+
+# eclipse project file
+.settings/
+.classpath
+.project
+
+# NetBeans specific
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+nbactions.xml
+nb-configuration.xml
+
+
+# OS
+.DS_Store
+
+# Misc
+*.swp
+release.properties
+pom.xml.releaseBackup
+pom.xml.tag
+__pycache__
+
+.Rproj.user
+
+/bin/
