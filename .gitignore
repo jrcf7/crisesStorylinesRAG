@@ -10,9 +10,13 @@ config.py
 # Project specific excludes
 #
 
+*.csv 
 *.log
 *.key 
 *.env
+
+/.gradio/
+/.gradio/*
 
 med_news.txt
 
