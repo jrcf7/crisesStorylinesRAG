@@ -17,12 +17,12 @@ import ast
 #df = pd.read_csv("emdat2.csv", sep=',', header=0, dtype=str, encoding='utf-8')
 df = pd.read_csv("https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/ETOHA/storylines/emdat2.csv", sep=',', header=0, dtype=str, encoding='utf-8')
 
-grp=eval(df.iloc[0]["causal graph"])
-
-source, relations, target = list(zip(*grp))
-kg_df = pd.DataFrame({'source':source, 'target':target, 'edge':relations})
-
-print("ciao")
+# grp=eval(df.iloc[0]["causal graph"])
+#
+# source, relations, target = list(zip(*grp))
+# kg_df = pd.DataFrame({'source':source, 'target':target, 'edge':relations})
+#
+# print("ciao")
 
 
 def try_parse_date(y, m, d):
