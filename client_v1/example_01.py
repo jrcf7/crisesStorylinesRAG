@@ -12,9 +12,28 @@ settings = EmmRetrieversSettings()
 settings.API_BASE
 
 # the test index configuration
-TEST_INDEX = "mine_e_emb-rag_live_test_001"
-INDEX_MIN = "2024-09-14"
-INDEX_MAX = "2024-09-28"
+# TEST_INDEX = "mine_e_emb-rag_live_test_001"
+# INDEX_MIN = "2024-09-14"
+# INDEX_MAX = "2024-09-28"
+#
+# TEST_INDEX = "mine_e_emb16-e1f7_prod4_2014"
+# INDEX_MIN = "2014-09-14"
+# INDEX_MAX = "2014-09-20"
+# TEST_INDEX = "mine_e_emb16-e1f7_prod4_2015"
+# INDEX_MIN = "2015-09-14"
+# INDEX_MAX = "2015-09-20"
+# TEST_INDEX = "mine_e_emb16-e1f7_prod4_2016"
+# INDEX_MIN = "2016-09-14"
+# INDEX_MAX = "2016-09-20"
+# TEST_INDEX = "mine_e_emb16-e1f7_prod4_2017"
+# INDEX_MIN = "2017-09-14"
+# INDEX_MAX = "2017-09-20"
+# TEST_INDEX = "mine_e_emb16-e1f7_prod4_2018"
+# INDEX_MIN = "2018-09-14"
+# INDEX_MAX = "2018-09-20"
+TEST_INDEX = "mine_e_emb16-e1f7_prod4_2019"
+INDEX_MIN = "2019-09-14"
+INDEX_MAX = "2019-09-20"
 
 # %%
 
@@ -30,8 +49,8 @@ retriever = EmmRetrieverV1(
     filter={
         "max_chunk_no": 1,
         "min_chars": 200,
-        "start_dt": "2024-09-19",
-        "end_dt": "2024-09-20",
+        "start_dt": INDEX_MIN,
+        "end_dt": INDEX_MAX,
     },
 )
 
