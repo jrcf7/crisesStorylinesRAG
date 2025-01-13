@@ -35,9 +35,9 @@ settings.API_BASE
 # INDEX_MIN = "2024-09-14"
 # INDEX_MAX = "2024-09-28"
 #
-# TEST_INDEX = "mine_e_emb16-e1f7_prod4_2014"
-# INDEX_MIN = "2014-09-14"
-# INDEX_MAX = "2014-09-20"
+TEST_INDEX = "mine_e_emb16-e1f7_prod4_2014"
+INDEX_MIN = "2015-09-14"
+INDEX_MAX = "2015-09-20"
 # TEST_INDEX = "mine_e_emb16-e1f7_prod4_2015"
 # INDEX_MIN = "2015-09-14"
 # INDEX_MAX = "2015-09-20"
@@ -50,9 +50,9 @@ settings.API_BASE
 # TEST_INDEX = "mine_e_emb16-e1f7_prod4_2018"
 # INDEX_MIN = "2018-09-14"
 # INDEX_MAX = "2018-09-20"
-TEST_INDEX = "mine_e_emb16-e1f7_prod4_2019"
-INDEX_MIN = "2019-09-14"
-INDEX_MAX = "2019-09-20"
+# TEST_INDEX = "mine_e_emb16-e1f7_prod4_2019"
+# INDEX_MIN = "2019-09-14"
+# INDEX_MAX = "2019-09-20"
 
 
 

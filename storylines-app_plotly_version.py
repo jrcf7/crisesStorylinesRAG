@@ -10,7 +10,7 @@ import plotly.express as px
 # Load the CSV file
 df = pd.read_csv("https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/ETOHA/storylines/emdat2.csv", sep=',', header=0,
                  dtype=str, encoding='utf-8')
-
+df = df.drop_duplicates(subset='DisNo.', keep='first')  #I drop all duplicates for column "DisNo.", keeping the first occurrence
 
 def try_parse_date(y, m, d):
     try:
