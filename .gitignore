@@ -105,3 +105,4 @@ __pycache__
 .Rproj.user
 
 /bin/
+.ipynb_checkpoints/
