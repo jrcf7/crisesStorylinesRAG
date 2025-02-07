@@ -1,5 +1,7 @@
 import pandas as pd 
-from utils import safe_extract_list_from_string, process_storyline
+from utils import process_graph, process_storyline, remove_duplicated_triplets
+from llm_utils import ensemble_graph
+import os 
 
 folder_path = './data'
 files = os.listdir(folder_path)
@@ -12,9 +14,6 @@ for file in csv_files:
 
 emdats = pd.concat(dataframes, ignore_index=True)
 print(len(emdats))
-emdats["causal graph"] = emdats["causal graph"].apply(safe_extract_list_from_string)
-filtered_emdats = emdats[emdats['causal graph'].apply(lambda x: isinstance(x, list))]
-print(len(filtered_emdats))
 
 columns_to_check = [
     'key information',
@@ -27,6 +26,17 @@ columns_to_check = [
     'causal graph'
 ]
 
-filtered_emdats = filtered_emdats.apply(process_storyline, axis=1)
-filtered_emdats = filtered_emdats.dropna(subset=columns_to_check).reset_index(drop=True)
-print(len(filtered_emdats))
+emdats = emdats.apply(process_storyline, axis=1)
+emdats = emdats.dropna(subset=columns_to_check).reset_index(drop=True)
+print(len(emdats))
+emdats = emdats[emdats["causal graph"].notna()]
+print(len(emdats))
+emdats["causal graph"] = emdats["causal graph"].apply(process_graph)
+emdats = emdats[emdats['causal graph'].apply(lambda x: isinstance(x, list))]
+print(len(emdats))
+emdats["mixtral graph"] = emdats.apply(ensemble_graph, axis=1)
+emdats["mixtral graph"] = emdats["mixtral graph"].apply(process_graph)
+emdats["ensemble graph"] = emdats["causal graph"]+emdats["mixtral graph"]
+emdats["ensemble graph"] = emdats["ensemble graph"].apply(remove_duplicated_triplets)
+
+emdats.to_csv("./data/CG_emdat_proc.csv", index=False)

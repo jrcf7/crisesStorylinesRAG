@@ -42,15 +42,13 @@ def extract_unique_nodes(relationships):
     return list(unique_nodes)
 
 def balance_brackets(s):
-    # Balance brackets by ensuring the number of opening and closing brackets match
     s = s.replace('}', ']')
     s = s.rstrip(",]")
     s = re.sub(r'([a-zA-Z]), \[', r'\1"], [', s)
-    s = s.split("Using shorter")[0].strip().rstrip('.')
+    s = s.split("using shorter")[0].strip().rstrip('.')  # Use lowercase "using shorter"
     open_count = s.count('[')
     close_count = s.count(']')
 
-    # Add missing brackets at the end if necessary
     if open_count > close_count:
         s += ']' * (open_count - close_count)
     elif close_count > open_count:
@@ -59,68 +57,33 @@ def balance_brackets(s):
     return s
 
 def clean_structure(s):
-    # Replace "and" between brackets with a comma
-    s = s.split("However")[0]
+    s = s.split("however")[0]  # Use lowercase "however"
     s = re.sub(r'\]\s+and\s+\[', '], [', s)
     s = re.sub(r'\]\n\n\[', '], [', s)
-    #s = re.sub(r', [', '"], [', s)
     s = s.rsplit(']', 1)[0] + ']'
-    #print(s)
     return s
 
 def remove_duplicate_keywords(relationships):
-    # Iterate over each relationship and remove consecutive duplicate "causes" or "prevents"
     cleaned_relationships = []
     for relation in relationships:
         cleaned_relation = []
         previous_word = None
         for word in relation:
-            # Add word if it's not a duplicate of the previous word
             if word != previous_word:
                 cleaned_relation.append(word)
             previous_word = word
         cleaned_relationships.append(cleaned_relation)
     return cleaned_relationships
 
-def extract_list_from_string(s):
-    # Remove introductory text before the first bracket
-    first_bracket_index = s.find('[')
-    if first_bracket_index != -1:
-        s = s[first_bracket_index:]
-
-    # Clean up the string
-    s = balance_brackets(s)
-    s = clean_structure(s)
-
-    # Attempt to parse the cleaned string as JSON
-    try:
-        # Directly parse the string after cleanup
-        relationships = json.loads(s)
-        # Ensure each element in relationships is cleaned if needed
-        relationships = [[elem.strip('", ') if isinstance(elem, str) else elem for elem in relation] for relation in relationships]
-        # Remove duplicate keywords
-        return remove_duplicate_keywords(relationships)
-    except json.JSONDecodeError:
-        print("JSON parsing failed, trying text extraction.")
-
-    # Fallback to text extraction
-    return extract_relationships_from_string(s)
-
 def extract_relationships_from_string(s):
-    # Split the string into lines based on newline characters
     lines = s.strip().split('\n')
-
-    # Initialize a list to hold the extracted relationships
     relationships = []
 
-    # Iterate over each line
     for line in lines:
-        # Remove any leading numbers, periods, hyphens, and whitespace using regex
         line = re.sub(r'^[-\d.]+\s*', '', line.strip())
         if not line:
-            continue  # Skip empty lines
+            continue
 
-        # Use 'causes' and 'prevents' as delimiters to split the line
         if 'causes' in line:
             parts = line.split('causes')
             if len(parts) == 2:
@@ -132,19 +95,53 @@ def extract_relationships_from_string(s):
                 prevention, effect = parts
                 relationships.append([prevention.strip(), 'prevents', effect.strip()])
 
-    # Clean each element by removing unnecessary quotes and commas
     relationships = [[elem.strip('", ') if isinstance(elem, str) else elem for elem in relation] for relation in relationships]
-    # Remove duplicate keywords
+    return relationships
+
+def extract_list_from_string(s):
+    s = s.lower()  # Convert to lowercase
+    first_bracket_index = s.find('[')
+    if first_bracket_index != -1:
+        s = s[first_bracket_index:]
+
+    s = balance_brackets(s)
+    s = clean_structure(s)
+
+    try:
+        relationships = json.loads(s)
+        relationships = [[elem.strip('", ') if isinstance(elem, str) else elem for elem in relation] for relation in relationships]
+    except json.JSONDecodeError:
+        relationships = extract_relationships_from_string(s)
+
     return remove_duplicate_keywords(relationships)
 
-def safe_extract_list_from_string(s):
-    try:
-        return extract_list_from_string(s)
-    except Exception as e:
-        # Print the element that caused the error and the exception message
-        print(f"Error processing element: {s}")
-        print(f"Exception: {e}")
-        return None  # Or handle it in another way, e.g., returning an empty list
+def transform_triplets(relationships):
+    def clean_element(element):
+        if isinstance(element, list):
+            element = ' '.join(element)
+        return re.sub(r'[^a-zA-Z\s-]', '', element).strip()
+
+    transformed_list = [
+        (clean_element(source), clean_element(relation), clean_element(target))
+        for triplet in relationships if len(triplet) == 3
+        for source, relation, target in [triplet]
+    ]
+
+    # Remove triplets with any element longer than 50 characters
+    transformed_list = [
+        triplet for triplet in transformed_list
+        if all(len(element) <= 50 for element in triplet)
+    ]
+    
+    return transformed_list
+
+def process_graph(s):
+    if isinstance(s, str):
+        relationships = extract_list_from_string(s)
+        return transform_triplets(relationships)
+    else:
+        return None
+
 
 def iso3_to_iso2(iso3_code):
     # Iterate through countries in pycountry and find a match for the ISO3 code
@@ -270,3 +267,19 @@ def process_storyline(row):
         return row
     else:
         return None
+    
+def remove_duplicated_triplets(list_of_lists):
+    # Use a set to track seen tuples
+    seen = set()
+    unique_list_of_lists = []
+    
+    for sublist in list_of_lists:
+        # Convert the sublist to a tuple (hashable)
+        t = tuple(sublist)
+        if t not in seen:
+            # Add the tuple to the seen set and append the original list to the result
+            seen.add(t)
+            unique_list_of_lists.append(sublist)
+    
+    return unique_list_of_lists
+
