@@ -127,13 +127,19 @@ def transform_triplets(relationships):
         for source, relation, target in [triplet]
     ]
 
-    # Remove triplets with any element longer than 50 characters
-    transformed_list = [
+    # Filter to only include triplets with 'causes' or 'prevents' as the relation
+    filtered_list = [
         triplet for triplet in transformed_list
+        if triplet[1] in {"causes", "prevents"}
+    ]
+
+    # Remove triplets with any element longer than 50 characters
+    filtered_list = [
+        triplet for triplet in filtered_list
         if all(len(element) <= 50 for element in triplet)
     ]
     
-    return transformed_list
+    return filtered_list
 
 def process_graph(s):
     if isinstance(s, str):
@@ -268,18 +274,12 @@ def process_storyline(row):
     else:
         return None
     
-def remove_duplicated_triplets(list_of_lists):
-    # Use a set to track seen tuples
-    seen = set()
-    unique_list_of_lists = []
-    
-    for sublist in list_of_lists:
-        # Convert the sublist to a tuple (hashable)
-        t = tuple(sublist)
-        if t not in seen:
-            # Add the tuple to the seen set and append the original list to the result
-            seen.add(t)
-            unique_list_of_lists.append(sublist)
-    
-    return unique_list_of_lists
-
+def custom_sum(x, y):
+    if x is None and y is None:
+        return np.nan
+    elif x is None:
+        return y
+    elif y is None:
+        return x
+    else:
+        return x + y

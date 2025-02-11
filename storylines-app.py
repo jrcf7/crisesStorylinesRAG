@@ -16,8 +16,8 @@ import ast
 # Load the CSV file
 #df = pd.read_csv("emdat2.csv", sep=',', header=0, dtype=str, encoding='utf-8')
 #df = pd.read_csv("https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/ETOHA/storylines/emdat2.csv", sep=',', header=0, dtype=str, encoding='utf-8')
-df = pd.read_csv("/eos/jeodpp/home/users/roncmic/data/crisesStorylinesRAG/CG_emdat_1301.csv", sep=',', header=0, dtype=str, encoding='utf-8')
-df = df.drop_duplicates(subset='DisNo.', keep='first')  #I drop all duplicates for column "DisNo.", keeping the first occurrence
+df = pd.read_csv("/eos/jeodpp/home/users/roncmic/data/crisesStorylinesRAG/procem_graph.csv", sep=',', header=0, dtype=str, encoding='utf-8')
+#df = df.drop_duplicates(subset='DisNo.', keep='first')  #I drop all duplicates for column "DisNo.", keeping the first occurrence
 
 
 # grp=eval(df.iloc[0]["causal graph"])
@@ -57,7 +57,7 @@ def plot_cgraph(grp):
     plt.tight_layout()
     return plt.gcf()
 
-def display_info(selected_row_str, country, year, month, day):
+def display_info(selected_row_str, country, year, month, day, graph_type):
     additional_fields = [
         "Country", "ISO", "Subregion", "Region", "Location", "Origin",
         "Disaster Group", "Disaster Subgroup", "Disaster Type", "Disaster Subtype", "External IDs",
@@ -142,7 +142,15 @@ def display_info(selected_row_str, country, year, month, day):
         likelihood_multi_hazard = row_data.get('likelihood of multi-hazard risks', '')
         best_practices = row_data.get('best practices for managing this risk', '')
         recommendations = row_data.get('recommendations and supportive measures for recovery', '')
-        causal_graph_caption = row_data.get('causal graph', '')
+        if graph_type == "LLaMA Graph":
+            causal_graph_caption = row_data.get('llama graph', '')
+        elif graph_type == "Mixtral Graph":
+            causal_graph_caption = row_data.get('mixtral graph', '')
+        elif graph_type == "Ensemble Graph":
+            causal_graph_caption = row_data.get('ensemble graph', '')
+        else:
+            causal_graph_caption = ''
+        #causal_graph_caption = row_data.get('causal graph', '')
         grp = ast.literal_eval(causal_graph_caption) if causal_graph_caption else []
         causal_graph_plot = plot_cgraph(grp)
 
@@ -245,8 +253,7 @@ def update_row_dropdown(country, year, month, day):
 
 
 def build_interface():
-    with gr.Blocks() as interface:
-
+    with gr.Blocks() as interface:   
         # Add title and description using text elements
         gr.Markdown("## From Data to Narratives: AI-Enhanced Disaster and Health Threats Storylines")  # Title
         gr.Markdown("This Gradio app complements Health Threats and Disaster event data through generative AI techniques, including the use of Retrieval Augmented Generation (RAG) with the [Europe Media Monitoring (EMM)](https://emm.newsbrief.eu/overview.html) service, "
@@ -272,6 +279,10 @@ def build_interface():
         month_dropdown = gr.Dropdown(choices=[""] + [f"{i:02d}" for i in range(1, 13)], label="Select Month")
         day_dropdown = gr.Dropdown(choices=[""] + [f"{i:02d}" for i in range(1, 32)], label="Select Day")
         row_dropdown = gr.Dropdown(choices=[], label="Select Disaster Event #", interactive=True)
+        graph_type_dropdown = gr.Dropdown(
+            choices=["LLaMA Graph", "Mixtral Graph", "Ensemble Graph"], 
+            label="Select Graph Type"
+        )
 
         # Define the additional fields once to use later in both position and function
         additional_fields = [
@@ -296,6 +307,7 @@ def build_interface():
                 month_dropdown
                 day_dropdown
                 row_dropdown
+                graph_type_dropdown
 
                 outputs = [
                     gr.Textbox(label="Key Information", interactive=False),
@@ -342,7 +354,12 @@ def build_interface():
         # Update the display information when a row is selected
         row_dropdown.change(
             fn=display_info,
-            inputs=[row_dropdown, country_dropdown, year_dropdown, month_dropdown, day_dropdown],
+            inputs=[row_dropdown, country_dropdown, year_dropdown, month_dropdown, day_dropdown, graph_type_dropdown],
+            outputs=outputs
+        )
+        graph_type_dropdown.change(
+            fn=display_info,
+            inputs=[row_dropdown, country_dropdown, year_dropdown, month_dropdown, day_dropdown, graph_type_dropdown],
             outputs=outputs
         )
 

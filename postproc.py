@@ -1,5 +1,5 @@
 import pandas as pd 
-from utils import process_graph, process_storyline, remove_duplicated_triplets
+from utils import process_graph, process_storyline, custom_sum
 from llm_utils import ensemble_graph
 import os 
 
@@ -31,12 +31,13 @@ emdats = emdats.dropna(subset=columns_to_check).reset_index(drop=True)
 print(len(emdats))
 emdats = emdats[emdats["causal graph"].notna()]
 print(len(emdats))
-emdats["causal graph"] = emdats["causal graph"].apply(process_graph)
-emdats = emdats[emdats['causal graph'].apply(lambda x: isinstance(x, list))]
+emdats["llama graph"] = emdats["causal graph"].apply(process_graph)
+emdats = emdats[emdats['llama graph'].apply(lambda x: isinstance(x, list))]
 print(len(emdats))
 emdats["mixtral graph"] = emdats.apply(ensemble_graph, axis=1)
 emdats["mixtral graph"] = emdats["mixtral graph"].apply(process_graph)
-emdats["ensemble graph"] = emdats["causal graph"]+emdats["mixtral graph"]
-emdats["ensemble graph"] = emdats["ensemble graph"].apply(remove_duplicated_triplets)
+emdats["ensemble graph"] = emdats.apply(lambda row: custom_sum(row["mixtral graph"], row["llama graph"]), axis=1)
+emdats["ensemble graph"] = emdats["ensemble graph"].apply(lambda x: list(set(x)))
 
 emdats.to_csv("./data/CG_emdat_proc.csv", index=False)
+print("Saved processed EMDAT data with stories and graphs at: ./data/CG_emdat_proc.csv")

@@ -1,4 +1,5 @@
 import httpx
+import os
 import pandas as pd
 from client_v1.settings import EmmRetrieversSettings
 from client_v1.jrc_openai import JRCChatOpenAI
@@ -6,6 +7,7 @@ from client_v1.formatting_utils import fixed_width_wrap, format_docs, format_doc
 from langchain_core.prompts import ChatPromptTemplate
 from utils import iso3_to_iso2, generate_date_ranges, process_documents, add_sections_as_columns
 from openai import OpenAI
+from httpx import ReadTimeout
 
 
 def gpt_graph(prompt):
@@ -90,10 +92,23 @@ filtered_emdat = emdat[emdat["start_dt"] >= cutoff_date]
 filtered_emdat["start_dt"] = filtered_emdat["start_dt"].dt.strftime('%Y-%m-%d')
 
 
+output_csv_dir = "./data/"
+skipped_rows_file = os.path.join(output_csv_dir, "skipped_rows.txt")
+os.makedirs(output_csv_dir, exist_ok=True)
 
 events = []
 
-for index, row in filtered_emdat.iloc[:50].iterrows():
+
+def save_and_log_skipped(events, row):
+    """Save processed events and log skipped rows."""
+    if events:
+        emdat2 = pd.concat(events)
+        emdat2.to_csv(os.path.join(output_csv_dir, f"emdat2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"), index=False)
+        print("Data saved up to disaster num. =", emdat2.iloc[-1]["DisNo."], "File saved at:", os.path.join(output_csv_dir, f"emdat2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"))
+    with open(skipped_rows_file, "a") as f:
+        f.write(f"{row['DisNo.']}\n")
+
+for index, row in filtered_emdat.iterrows():
     #i+=1
     print("Processing Disaster Num = ", row["DisNo."])  
     disaster = row["Disaster Type"]
@@ -111,37 +126,44 @@ for index, row in filtered_emdat.iloc[:50].iterrows():
     
     all_documents = []  # List to store all retrieved documents
     for start_dt, end_dt in start_end_dates:
-        print("start : ", start_dt, ", end : ", end_dt)
+        #print("start : ", start_dt, ", end : ", end_dt)
         st = pd.to_datetime(start_dt)
         en = pd.to_datetime(end_dt)
         if en > pd.Timestamp(year=st.year, month=12, day=27):
             print("End of Year!")
-            TEST_INDEX = apindex[str(st.year+1)]            
-        response = client.post(
-            "/r/rag-minimal/query",
-            params={"cluster_name": settings.DEFAULT_CLUSTER, "index": TEST_INDEX},
-            json={
-                "query": EXAMPLE_QUESTION,
-                "lambda_mult": 0.9,
-                "spec": {"search_k": 20, "fetch_k": 100},
-                "filter": {
-                    "max_chunk_no": 1,
-                    "min_chars": 100,
-                    "start_dt": start_dt,
-                    "end_dt": end_dt,
-                # "language": ["en", "fr", "es"],
+            TEST_INDEX = apindex[str(st.year+1)]
+        try:
+            response = client.post(
+                "/r/rag-minimal/query",
+                params={"cluster_name": settings.DEFAULT_CLUSTER, "index": TEST_INDEX},
+                json={
+                    "query": EXAMPLE_QUESTION,
+                    "lambda_mult": 0.9,
+                    "spec": {"search_k": 20, "fetch_k": 100},
+                    "filter": {
+                        "max_chunk_no": 1,
+                        "min_chars": 100,
+                        "start_dt": start_dt,
+                        "end_dt": end_dt,
+                    # "language": ["en", "fr", "es"],
+                    },
                 },
-            },
-        )
+                timeout=10.0
+            )
 
-        response.raise_for_status()  # Ensure the request was successful
-
-        search_resp = response.json()
-        documents = search_resp["documents"]
-        all_documents.extend(documents)  # Append retrieved documents
-
-    print(f"Total documents retrieved: {len(all_documents)}")
+            response.raise_for_status()  # Ensure the request was successful
+            search_resp = response.json()
+            documents = search_resp["documents"]
+            all_documents.extend(documents)  # Append retrieved documents
+            
+        except (ReadTimeout, httpx.HTTPStatusError, Exception) as e:
+            print(f"An error occurred: {e}")
+            save_and_log_skipped(events, row)
+            events = []
+            break  # Exit the inner loop to continue with the next disaster
     
+    #print(f"Total documents retrieved: {len(all_documents)}")
+        
     #docs = retriever.invoke(EXAMPLE_QUESTION)
     llm_model = JRCChatOpenAI(model="llama-3.1-70b-instruct", 
                           api_key=settings.OPENAI_API_KEY,
@@ -197,7 +219,12 @@ for index, row in filtered_emdat.iloc[:50].iterrows():
         events.append(updated_row)
         
     except Exception as e:
-        emdat2 = pd.concat(events)
-        emdat2.to_csv("./data/emdat2_"+emdat2.iloc[-1]["DisNo."].replace('-', '')+".csv", index=False)
-        print("Processing ended at disaster num. = ", emdat2.iloc[-1]["DisNo."], " File saved at: ", "./data/emdat2_"+emdat2.iloc[-1]["DisNo."].replace('-', '')+".csv")
+        print(f"An error occurred: {e}")
+        save_and_log_skipped(events, row)
+        events = []
         
+
+if events:
+    emdat2 = pd.concat(events)
+    emdat2.to_csv(os.path.join(output_csv_dir, f"emdat2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"), index=False)
+    print("Final data saved up to disaster num. =", emdat2.iloc[-1]["DisNo."], "File saved at:", os.path.join(output_csv_dir, f"emdat2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"))
