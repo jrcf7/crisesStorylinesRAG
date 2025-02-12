@@ -16,7 +16,8 @@ import ast
 # Load the CSV file
 #df = pd.read_csv("emdat2.csv", sep=',', header=0, dtype=str, encoding='utf-8')
 #df = pd.read_csv("https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/ETOHA/storylines/emdat2.csv", sep=',', header=0, dtype=str, encoding='utf-8')
-df = pd.read_csv("/eos/jeodpp/home/users/roncmic/data/crisesStorylinesRAG/procem_graph.csv", sep=',', header=0, dtype=str, encoding='utf-8')
+#df = pd.read_csv("/eos/jeodpp/home/users/roncmic/data/crisesStorylinesRAG/procem_graph.csv", sep=',', header=0, dtype=str, encoding='utf-8')
+df = pd.read_csv("https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/ETOHA/storylines/procem_graph.csv", sep=',', header=0, dtype=str, encoding='utf-8')
 #df = df.drop_duplicates(subset='DisNo.', keep='first')  #I drop all duplicates for column "DisNo.", keeping the first occurrence
 
 
@@ -368,3 +369,4 @@ def build_interface():
 
 app = build_interface()
 app.launch()
+#app.launch(share=True)
