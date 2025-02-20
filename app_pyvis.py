@@ -6,7 +6,7 @@ from pyvis.network import Network
 import ast
 
 # Load the CSV file
-df = pd.read_csv("/eos/jeodpp/home/users/roncmic/data/gitf7/crisesStorylinesRAG/data/CG_emdat_proc.csv", sep=',', header=0, dtype=str, encoding='utf-8')
+df = pd.read_csv("https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/ETOHA/storylines/emdat2.csv", sep=',', header=0, dtype=str, encoding='utf-8')
 
 def try_parse_date(y, m, d):
     try:
