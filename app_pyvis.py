@@ -201,7 +201,13 @@ def update_row_dropdown(country, year, month, day):
 def build_interface():
     with gr.Blocks() as interface:   
         gr.Markdown("## From Data to Narratives: AI-Enhanced Disaster and Health Threats Storylines")
-        gr.Markdown("...")
+        gr.Markdown(
+            "This Gradio app complements Health Threats and Disaster event data through generative AI techniques, including the use of Retrieval Augmented Generation (RAG) with the [Europe Media Monitoring (EMM)](https://emm.newsbrief.eu/overview.html) service, "
+            "and Large Language Models (LLMs) from the [GPT@JRC](https://gpt.jrc.ec.europa.eu/) portfolio. <br>"
+            "The app leverages the EMM RAG service to retrieve relevant news chunks for each event data, transforms the unstructured news chunks into structured narratives and causal knowledge graphs using LLMs and text-to-graph techniques, linking health threats and disaster events to their causes and impacts. "
+            "Drawing data from sources like the [EM-DAT](https://www.emdat.be/) database, it augments each event with news-derived information in a storytelling fashion. <br>"
+            "This tool enables decision-makers to better explore health threats and disaster dynamics, identify patterns, and simulate scenarios for improved response and readiness. <br><br>"
+            "Select an event data below. You can filter by country and date period. Below, you will see the AI-generated storyline and causal knowledge graph, while on the right you can see the related EM-DAT data record.  <br><br>")  # Description  -, and constructs disaster-specific ontologies. "
 
         # Extract and prepare unique years from "Start Year" and "End Year"
         if not df.empty:
@@ -235,33 +241,37 @@ def build_interface():
             "Admin Units",
         ]
 
-        with gr.Row():
-            with gr.Column():
-                country_dropdown
-                year_dropdown
-                month_dropdown
-                day_dropdown
-                row_dropdown
-                graph_type_dropdown
+        with gr.Column():
+        #with gr.Row():
+            #with gr.Column():
+            country_dropdown
+            year_dropdown
+            month_dropdown
+            day_dropdown
+            row_dropdown
+            graph_type_dropdown
 
-                outputs = [
-                    gr.Textbox(label="Key Information", interactive=False),
-                    gr.Textbox(label="Severity", interactive=False),
-                    gr.Textbox(label="Key Drivers", interactive=False),
-                    gr.Textbox(label="Main Impacts, Exposure, and Vulnerability", interactive=False),
-                    gr.Textbox(label="Likelihood of Multi-Hazard Risks", interactive=False),
-                    gr.Textbox(label="Best Practices for Managing This Risk", interactive=False),
-                    gr.Textbox(label="Recommendations and Supportive Measures for Recovery", interactive=False),
-                    gr.HTML(label="Causal Graph")  # Change from gr.Plot to gr.HTML
-                ]
+            gr.Markdown("### AI-Generated Storyline:"),  # Title
+            outputs = [
+                gr.Textbox(label="Key Information", interactive=False),
+                gr.Textbox(label="Severity", interactive=False),
+                gr.Textbox(label="Key Drivers", interactive=False),
+                gr.Textbox(label="Main Impacts, Exposure, and Vulnerability", interactive=False),
+                gr.Textbox(label="Likelihood of Multi-Hazard Risks", interactive=False),
+                gr.Textbox(label="Best Practices for Managing This Risk", interactive=False),
+                gr.Textbox(label="Recommendations and Supportive Measures for Recovery", interactive=False),
+                #gr.Markdown("### Causal Graph:"),  # Title
+                gr.HTML(label="Causal Graph")  # Change from gr.Plot to gr.HTML
+            ]
 
-            with gr.Column():
-                outputs.extend([
-                    gr.Textbox(label="Start Date", interactive=False),
-                    gr.Textbox(label="End Date", interactive=False)
-                ])
-                for field in additional_fields:
-                    outputs.append(gr.Textbox(label=field, interactive=False))
+            #with gr.Column():
+            gr.Markdown("### EMDAT2 Original Record:")  # Title
+            outputs.extend([
+                gr.Textbox(label="Start Date", interactive=False),
+                gr.Textbox(label="End Date", interactive=False)
+            ])
+            for field in additional_fields:
+                outputs.append(gr.Textbox(label=field, interactive=False))
 
         country_dropdown.change(
             fn=update_row_dropdown,
