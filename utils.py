@@ -142,11 +142,14 @@ def transform_triplets(relationships):
     return filtered_list
 
 def process_graph(s):
-    if isinstance(s, str):
-        relationships = extract_list_from_string(s)
-        return transform_triplets(relationships)
-    else:
-        return None
+    try:
+        if isinstance(s, str):
+            relationships = extract_list_from_string(s)
+            return transform_triplets(relationships)
+        else:
+            return None
+    except Exception as e:
+        return None 
 
 
 def iso3_to_iso2(iso3_code):

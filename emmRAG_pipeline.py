@@ -63,6 +63,14 @@ client = httpx.Client(
 
 # Read EM-DAT dataset containing disaster events 
 emdat = pd.read_excel("./data/public_emdat_1419.xlsx")
+
+f = open('./data/skipped_rows.txt')
+disno = f.read().splitlines()
+f.close()
+emdat = emdat[emdat["DisNo."].isin(disno)]
+
+print(len(emdat))
+
 emdat['Start Month'] = emdat['Start Month'].fillna(1).astype(int)
 emdat['Start Day'] = emdat['Start Day'].fillna(1).astype(int)
 emdat['start_dt'] = pd.to_datetime(emdat['Start Year'].astype(str) + '-' +
@@ -93,7 +101,7 @@ filtered_emdat["start_dt"] = filtered_emdat["start_dt"].dt.strftime('%Y-%m-%d')
 
 
 output_csv_dir = "./data/"
-skipped_rows_file = os.path.join(output_csv_dir, "skipped_rows.txt")
+skipped_rows_file = os.path.join(output_csv_dir, "skipped_rows1.txt")
 os.makedirs(output_csv_dir, exist_ok=True)
 
 events = []
@@ -122,7 +130,7 @@ for index, row in filtered_emdat.iterrows():
 
 
     EXAMPLE_QUESTION = f"What are the latest developments on the {disaster} disaster occurred in {country} on {mnts[start_dt.split("-")[1]]} {int(start_dt.split("-")[0])} that affected {location}?"
-    print(EXAMPLE_QUESTION)
+    #print(EXAMPLE_QUESTION)
     
     all_documents = []  # List to store all retrieved documents
     for start_dt, end_dt in start_end_dates:
@@ -158,9 +166,9 @@ for index, row in filtered_emdat.iterrows():
             
         except (ReadTimeout, httpx.HTTPStatusError, Exception) as e:
             print(f"An error occurred: {e}")
-            save_and_log_skipped(events, row)
-            events = []
-            break  # Exit the inner loop to continue with the next disaster
+            #save_and_log_skipped(events, row)
+            #events = []
+            break  
     
     #print(f"Total documents retrieved: {len(all_documents)}")
         
@@ -193,33 +201,39 @@ for index, row in filtered_emdat.iterrows():
     def extract_instructions(d):
         return d["instructions"]
     
-    rag_chain = (
-        {
-            "context": lambda _: process_documents(all_documents, iso2=iso2, country=country),
-            "question": extract_question,
-            "instructions": extract_instructions
-        }
-        | prompt
-        | llm_model
-    )
+    
     
     #attempt = 0
     #while attempt < max_retries:
-    try:
-        r =  rag_chain.invoke({"question":EXAMPLE_QUESTION, "instructions": f"Complete this factsheet on the {disaster}             event in {country}: \n - Key information: [Quick summary with location and date.] \n - Severity: [Very low,             Low, Medium, High, Very high.] \n - Key drivers: [Main causes of the disaster.] \n - Main impacts, exposure,             and vulnerability: [Economic damage, people affected, fatalities, effects on communities and                             infrastructure.] \n- Likelihood of multi-hazard risks: [Chances of subsequent related hazards.] \n- Best                 practices for managing this risk: [Effective prevention and mitigation strategies.] \n- Recommendations and             supportive measures for recovery: [Guidelines for aid and rebuilding.]\n If specific details are unavailable             or uncertain, indicate as 'unknown'."})
-        story = fixed_width_wrap(r.content)
-        graph_prompt = f"""Create a knowledge graph that captures the main causal relationships presented in the text.               You have to use only these two relationship types: 'causes' or 'prevents' (so e.g. either 'A causes B' or 'A             prevents B'), no other type of relations are allowed. When constructing the graph, minimize the number of               nodes, exclude specific instances or dates to maintain the graph's relevance across various scenarios and               try to use short node names.\n Example: 
+    if all_documents:
+        try:
+            rag_chain = (
+            {
+                "context": lambda _: process_documents(all_documents, iso2=iso2, country=country),
+                "question": extract_question,
+                "instructions": extract_instructions
+            }
+            | prompt
+            | llm_model
+            )
+            r =  rag_chain.invoke({"question":EXAMPLE_QUESTION, "instructions": f"Complete this factsheet on the {disaster}             event in {country}: \n - Key information: [Quick summary with location and date.] \n - Severity: [Very low,             Low, Medium, High, Very high.] \n - Key drivers: [Main causes of the disaster.] \n - Main impacts, exposure,             and vulnerability: [Economic damage, people affected, fatalities, effects on communities and                             infrastructure.] \n- Likelihood of multi-hazard risks: [Chances of subsequent related hazards.] \n- Best                 practices for managing this risk: [Effective prevention and mitigation strategies.] \n- Recommendations and             supportive measures for recovery: [Guidelines for aid and rebuilding.]\n If specific details are unavailable             or uncertain, indicate as 'unknown'."})
+            story = fixed_width_wrap(r.content)
+            graph_prompt = f"""Create a knowledge graph that captures the main causal relationships presented in the text.               You have to use only these two relationship types: 'causes' or 'prevents' (so e.g. either 'A causes B' or 'A             prevents B'), no other type of relations are allowed. When constructing the graph, minimize the number of               nodes, exclude specific instances or dates to maintain the graph's relevance across various scenarios and               try to use short node names.\n Example: 
             prompt: In the past few days, several districts of Limpopo province, north-eastern South Africa experienced             heavy rain and hailstorms, causing floods and severe weather-related incidents that resulted in casualties               and damage. Local authorities warned population, and many were evacuated. 
             \n graph: [["heavy rain", "causes", "flooding"], ["hailstorms", "causes", "flooding"], ["flooding",                     "causes", "damages"],  ["flooding", "causes", "casualties"], ["early warning", "prevents", "casualties"]]
             \n
             prompt: {story}
             \n graph:"""
     
-        updated_row = add_sections_as_columns(row, story, gpt_graph(graph_prompt))
-        events.append(updated_row)
+            updated_row = add_sections_as_columns(row, story, gpt_graph(graph_prompt))
+            events.append(updated_row)
         
-    except Exception as e:
-        print(f"An error occurred: {e}")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            save_and_log_skipped(events, row)
+            events = []
+    else:
+        print("No news retrieved about disaster: ", row["DisNo."])
         save_and_log_skipped(events, row)
         events = []
         

@@ -14,6 +14,9 @@ for file in csv_files:
 
 emdats = pd.concat(dataframes, ignore_index=True)
 print(len(emdats))
+counts = emdats['DisNo.'].value_counts()
+emdats = emdats[emdats['DisNo.'].isin(counts[counts == 1].index)]
+print(len(emdats))
 
 columns_to_check = [
     'key information',

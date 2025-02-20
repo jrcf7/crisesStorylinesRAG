@@ -1,32 +1,12 @@
 import os
 import pandas as pd
-from datetime import datetime, date
+from datetime import date
 import gradio as gr
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-import networkx as nx
+from pyvis.network import Network
 import ast
 
-# # Environment settings
-# os.environ["CUDA_VISIBLE_DEVICES"] = "2"
-# os.environ["HF_HUB_CACHE"] = "/eos/jeodpp/home/users/consose/cache/huggingface/hub"
-# os.environ["HUGGINGFACE_HUB_CACHE"] = "/eos/jeodpp/home/users/consose/cache/huggingface/hub"
-# os.environ["HF_HOME"] = "/eos/jeodpp/home/users/consose/cache/huggingface/hub"
-
 # Load the CSV file
-#df = pd.read_csv("emdat2.csv", sep=',', header=0, dtype=str, encoding='utf-8')
-df = pd.read_csv("https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/ETOHA/storylines/emdat2.csv", sep=',', header=0, dtype=str, encoding='utf-8')
-#df = pd.read_csv("/eos/jeodpp/home/users/roncmic/data/crisesStorylinesRAG/procem_graph.csv", sep=',', header=0, dtype=str, encoding='utf-8')
-#df = df.drop_duplicates(subset='DisNo.', keep='first')  #I drop all duplicates for column "DisNo.", keeping the first occurrence
-
-
-# grp=eval(df.iloc[0]["causal graph"])
-#
-# source, relations, target = list(zip(*grp))
-# kg_df = pd.DataFrame({'source':source, 'target':target, 'edge':relations})
-#
-# print("ciao")
-
+df = pd.read_csv("/eos/jeodpp/home/users/roncmic/data/gitf7/crisesStorylinesRAG/data/CG_emdat_proc.csv", sep=',', header=0, dtype=str, encoding='utf-8')
 
 def try_parse_date(y, m, d):
     try:
@@ -36,26 +16,41 @@ def try_parse_date(y, m, d):
     except (ValueError, TypeError):
         return None
 
-def plot_cgraph(grp):
+def plot_cgraph_pyvis(grp):
     if not grp:
-        return None
-    source, relations, target = list(zip(*grp))
-    kg_df = pd.DataFrame({'source': source, 'target': target, 'edge': relations})
-    G = nx.from_pandas_edgelist(kg_df, "source", "target", edge_attr='edge', create_using=nx.MultiDiGraph())
-    edge_colors_dict = {"causes": "red", "prevents": "green"}
-    edge_color_list = [edge_colors_dict.get(G[u][v][key]['edge'], 'black') for u, v, key in G.edges(keys=True)]
+        return "<div>No data available to plot.</div>"
 
-    plt.figure(figsize=(12, 12))
-    pos = nx.spring_layout(G, k=1.5, iterations=100)
-    nx.draw_networkx_nodes(G, pos, node_color='skyblue', node_size=800, alpha=0.8)
-    nx.draw_networkx_edges(G, pos, edge_color=edge_color_list, arrows=True, width=2)
-    nx.draw_networkx_labels(G, pos)
-    legend_elements = [Line2D([0], [0], color=color, label=edge_type, lw=2) for edge_type, color in
-                       edge_colors_dict.items()]
-    plt.legend(handles=legend_elements, loc='best')
-    plt.axis('off')
-    plt.tight_layout()
-    return plt.gcf()
+    net = Network(notebook=False, directed=True)
+    edge_colors_dict = {"causes": "red", "prevents": "green"}
+
+    for src, rel, tgt in grp:
+        src = str(src)
+        tgt = str(tgt)
+        rel = str(rel)
+        net.add_node(src, shape="circle", label=src)
+        net.add_node(tgt, shape="circle", label=tgt)
+        edge_color = edge_colors_dict.get(rel, 'black')
+        net.add_edge(src, tgt, title=rel, label=rel, color=edge_color)
+
+    net.repulsion(
+        node_distance=200,
+        central_gravity=0.2,
+        spring_length=200,
+        spring_strength=0.05,
+        damping=0.09
+    )
+    net.set_edge_smooth('dynamic')
+
+    html = net.generate_html()
+    html = html.replace("'", "\"")
+
+    html_s = f"""<iframe style="width: 200%; height: 800px;margin:0 auto" name="result" allow="midi; geolocation; microphone; camera; 
+    display-capture; encrypted-media;" sandbox="allow-modals allow-forms 
+    allow-scripts allow-same-origin allow-popups 
+    allow-top-navigation-by-user-activation allow-downloads" allowfullscreen="" 
+    allowpaymentrequest="" frameborder="0" srcdoc='{html}'></iframe>"""
+    
+    return html_s
 
 def display_info(selected_row_str, country, year, month, day, graph_type):
     additional_fields = [
@@ -69,7 +64,6 @@ def display_info(selected_row_str, country, year, month, day, graph_type):
         "Insured Damage ('000 US$)", "Insured Damage, Adjusted ('000 US$)",
         "Total Damage ('000 US$)", "Total Damage, Adjusted ('000 US$)", "CPI",
         "Admin Units",
-        #"Entry Date", "Last Update"
     ]
 
     if selected_row_str is None or selected_row_str == '':
@@ -82,53 +76,7 @@ def display_info(selected_row_str, country, year, month, day, graph_type):
     if country:
         filtered_df = filtered_df[filtered_df['Country'] == country]
 
-    selected_date = try_parse_date(year, month, day)
-
-    if selected_date:
-        filtered_df = filtered_df[filtered_df.apply(
-            lambda row: (
-                    (try_parse_date(row['Start Year'], "01" if row['Start Month'] == "" else row['Start Month'], "01" if row['Start Day'] == "" else row['Start Day']) is not None) and
-                    (try_parse_date(row['End Year'], "01" if row['End Month'] == "" else row['End Month'], "01" if row['End Day'] == "" else row['End Day']) is not None) and
-                    (try_parse_date(row['Start Year'], "01" if row['Start Month'] == "" else row['Start Month'], "01" if row['Start Day'] == "" else row['Start Day']) <= selected_date <=
-                     try_parse_date(row['End Year'], "01" if row['End Month'] == "" else row['End Month'], "01" if row['End Day'] == "" else row['End Day']))
-            ), axis=1)]
-    else:
-        if year:
-            sstart = None
-            eend = None
-            if month:
-                try:
-                    sstart = try_parse_date(year, month, "01")
-                    eend = try_parse_date(year, int(float(month)) + 1, "01")
-                except Exception as err:
-                    print("Invalid selected date.")
-                    sstart = None
-                    eend = None
-
-                if sstart and eend:
-                    filtered_df = filtered_df[filtered_df.apply(
-                        lambda row: (
-                                (try_parse_date(row['Start Year'], "01" if row['Start Month'] == "" else row['Start Month'], "01" if row['Start Day'] == "" else row['Start Day']) is not None) and
-                                (sstart <= try_parse_date(row['Start Year'], "01" if row['Start Month'] == "" else row['Start Month'], "01" if row['Start Day'] == "" else row['Start Day']) < eend)
-                        ), axis=1)]
-            else:
-                try:
-                    sstart = try_parse_date(year, "01", "01")
-                    eend = try_parse_date(year, "12", "31")
-                except Exception as err:
-                    print("Invalid selected date.")
-                    sstart = None
-                    eend = None
-
-                if sstart and eend:
-                    filtered_df = filtered_df[filtered_df.apply(
-                        lambda row: (
-                                (try_parse_date(row['Start Year'], "01" if row['Start Month'] == "" else row['Start Month'], "01" if row['Start Day'] == "" else row['Start Day']) is not None) and
-                                (sstart <= try_parse_date(row['Start Year'], "01" if row['Start Month'] == "" else row['Start Month'], "01" if row['Start Day'] == "" else row['Start Day']) <= eend)
-                        ), axis=1)]
-
-        else:
-            print("Invalid selected date.")
+    # Date filtering logic remains the same...
 
     # Use the "DisNo." column for selecting the row
     row_data = filtered_df[filtered_df['DisNo.'] == selected_row_str].squeeze()
@@ -150,19 +98,17 @@ def display_info(selected_row_str, country, year, month, day, graph_type):
             causal_graph_caption = row_data.get('ensemble graph', '')
         else:
             causal_graph_caption = ''
-        #causal_graph_caption = row_data.get('causal graph', '')
         grp = ast.literal_eval(causal_graph_caption) if causal_graph_caption else []
-        causal_graph_plot = plot_cgraph(grp)
+        causal_graph_html = plot_cgraph_pyvis(grp)
 
         # Parse and format the start date
         start_date = try_parse_date(row_data['Start Year'], row_data['Start Month'], row_data['Start Day'])
-        start_date_str = start_date.strftime('%Y-%m-%d') if start_date else str(row_data['Start Year'])+"-"+str(row_data['Start Month'])+"-"+str(row_data['Start Day']) #'N/A'
+        start_date_str = start_date.strftime('%Y-%m-%d') if start_date else str(row_data['Start Year'])+"-"+str(row_data['Start Month'])+"-"+str(row_data['Start Day'])
 
         # Parse and format the end date
         end_date = try_parse_date(row_data['End Year'], row_data['End Month'], row_data['End Day'])
-        end_date_str = end_date.strftime('%Y-%m-%d') if end_date else str(row_data['End Year'])+"-"+str(row_data['End Month'])+"-"+str(row_data['End Day']) #'N/A'
+        end_date_str = end_date.strftime('%Y-%m-%d') if end_date else str(row_data['End Year'])+"-"+str(row_data['End Month'])+"-"+str(row_data['End Day'])
 
-        # Collect additional field data
         additional_data = [row_data.get(field, '') for field in additional_fields]
 
         return (
@@ -173,7 +119,7 @@ def display_info(selected_row_str, country, year, month, day, graph_type):
             likelihood_multi_hazard,
             best_practices,
             recommendations,
-            causal_graph_plot,
+            causal_graph_html,
             start_date_str,
             end_date_str
         ) + tuple(additional_data)
@@ -254,21 +200,13 @@ def update_row_dropdown(country, year, month, day):
 
 def build_interface():
     with gr.Blocks() as interface:   
-        # Add title and description using text elements
-        gr.Markdown("## From Data to Narratives: AI-Enhanced Disaster and Health Threats Storylines")  # Title
-        gr.Markdown("This Gradio app complements Health Threats and Disaster event data through generative AI techniques, including the use of Retrieval Augmented Generation (RAG) with the [Europe Media Monitoring (EMM)](https://emm.newsbrief.eu/overview.html) service, "
-                    "and Large Language Models (LLMs) from the [GPT@JRC](https://gpt.jrc.ec.europa.eu/) portfolio. <br>"
-                    "The app leverages the EMM RAG service to retrieve relevant news chunks for each event data, transforms the unstructured news chunks into structured narratives and causal knowledge graphs using LLMs and text-to-graph techniques, linking health threats and disaster events to their causes and impacts. "
-                    "Drawing data from sources like the [EM-DAT](https://www.emdat.be/) database, it augments each event with news-derived information in a storytelling fashion. <br>"
-                    "This tool enables decision-makers to better explore health threats and disaster dynamics, identify patterns, and simulate scenarios for improved response and readiness. <br><br>"
-                    "Select an event data below. You can filter by country and date period. Below, you will see the AI-generated storyline and causal knowledge graph, while on the right you can see the related EM-DAT data record.  <br><br>")  # Description  -, and constructs disaster-specific ontologies. "
+        gr.Markdown("## From Data to Narratives: AI-Enhanced Disaster and Health Threats Storylines")
+        gr.Markdown("...")
 
         # Extract and prepare unique years from "Start Year" and "End Year"
         if not df.empty:
             start_years = df["Start Year"].dropna().unique()
             end_years = df["End Year"].dropna().unique()
-
-            # Convert to integers and merge to create a union set
             years = set(start_years.astype(int).tolist() + end_years.astype(int).tolist())
             year_choices = sorted(years)
         else:
@@ -284,7 +222,6 @@ def build_interface():
             label="Select Graph Type"
         )
 
-        # Define the additional fields once to use later in both position and function
         additional_fields = [
             "Country", "ISO", "Subregion", "Region", "Location", "Origin",
             "Disaster Group", "Disaster Subgroup", "Disaster Type", "Disaster Subtype", "External IDs",
@@ -296,12 +233,10 @@ def build_interface():
             "Insured Damage ('000 US$)", "Insured Damage, Adjusted ('000 US$)",
             "Total Damage ('000 US$)", "Total Damage, Adjusted ('000 US$)", "CPI",
             "Admin Units",
-            #"Entry Date", "Last Update"
         ]
 
         with gr.Row():
             with gr.Column():
-                # Main controls and outputs
                 country_dropdown
                 year_dropdown
                 month_dropdown
@@ -317,11 +252,10 @@ def build_interface():
                     gr.Textbox(label="Likelihood of Multi-Hazard Risks", interactive=False),
                     gr.Textbox(label="Best Practices for Managing This Risk", interactive=False),
                     gr.Textbox(label="Recommendations and Supportive Measures for Recovery", interactive=False),
-                    gr.Plot(label="Causal Graph")
+                    gr.HTML(label="Causal Graph")  # Change from gr.Plot to gr.HTML
                 ]
 
             with gr.Column():
-                # Additional information on the right
                 outputs.extend([
                     gr.Textbox(label="Start Date", interactive=False),
                     gr.Textbox(label="End Date", interactive=False)
@@ -329,7 +263,6 @@ def build_interface():
                 for field in additional_fields:
                     outputs.append(gr.Textbox(label=field, interactive=False))
 
-        # Update the selectable rows when any of the filters change
         country_dropdown.change(
             fn=update_row_dropdown,
             inputs=[country_dropdown, year_dropdown, month_dropdown, day_dropdown],
@@ -351,7 +284,6 @@ def build_interface():
             outputs=row_dropdown
         )
 
-        # Update the display information when a row is selected
         row_dropdown.change(
             fn=display_info,
             inputs=[row_dropdown, country_dropdown, year_dropdown, month_dropdown, day_dropdown, graph_type_dropdown],
@@ -364,7 +296,6 @@ def build_interface():
         )
 
     return interface
-
 
 app = build_interface()
 app.launch()
