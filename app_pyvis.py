@@ -14,6 +14,7 @@ EMM_RETRIEVERS_OPENAI_API_BASE_URL="https://api-gpt.jrc.ec.europa.eu/v1"
 with open('./data/gpt_token.json', 'r') as file:
     config = json.load(file)
     EMM_RETRIEVERS_OPENAI_API_KEY = config['EMM_RETRIEVERS_OPENAI_API_KEY']
+#EMM_RETRIEVERS_OPENAI_API_KEY = os.environ['key_gptjrc']
     
 client1 = OpenAI(
     api_key=EMM_RETRIEVERS_OPENAI_API_KEY,
