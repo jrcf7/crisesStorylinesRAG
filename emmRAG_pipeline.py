@@ -12,7 +12,7 @@ from httpx import ReadTimeout
 
 def gpt_graph(prompt):
     completion = client1.chat.completions.create(
-        model="llama-3.1-70b-instruct",  # Replace with the appropriate model for your use case
+        model="llama-3.3-70b-instruct",  # Replace with the appropriate model for your use case
         messages=[
         {"role": "system", "content": "You are a disaster manager expert in risk dynamics."},
         {
@@ -173,7 +173,7 @@ for index, row in filtered_emdat.iterrows():
     #print(f"Total documents retrieved: {len(all_documents)}")
         
     #docs = retriever.invoke(EXAMPLE_QUESTION)
-    llm_model = JRCChatOpenAI(model="llama-3.1-70b-instruct", 
+    llm_model = JRCChatOpenAI(model="llama-3.3-70b-instruct",
                           api_key=settings.OPENAI_API_KEY,
                           base_url=settings.OPENAI_API_BASE_URL)
 
