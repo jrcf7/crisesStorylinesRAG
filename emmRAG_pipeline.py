@@ -15,7 +15,11 @@ model = "llama-3.3-70b-instruct"
 
 def gpt_graph(prompt):
     completion = client1.chat.completions.create(
+<<<<<<< HEAD
         model=model,  # Replace with the appropriate model for your use case
+=======
+        model="llama-3.3-70b-instruct",  # Replace with the appropriate model for your use case
+>>>>>>> 6691c5dce25669cfbbbec4df3917bf350defbdd9
         messages=[
         {"role": "system", "content": "You are a disaster manager expert in risk dynamics."},
         {
@@ -269,7 +273,11 @@ for index, row in filtered_emdat.iterrows():
     #print(f"Total documents retrieved: {len(all_documents)}")
         
     #docs = retriever.invoke(EXAMPLE_QUESTION)
+<<<<<<< HEAD
     llm_model = JRCChatOpenAI(model=model, 
+=======
+    llm_model = JRCChatOpenAI(model="llama-3.3-70b-instruct",
+>>>>>>> 6691c5dce25669cfbbbec4df3917bf350defbdd9
                           api_key=settings.OPENAI_API_KEY,
                           base_url=settings.OPENAI_API_BASE_URL)
 
