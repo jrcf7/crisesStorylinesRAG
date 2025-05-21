@@ -2,14 +2,19 @@ from openai import OpenAI
 from utils import extract_unique_nodes
 import time
 import random
+import json
 
-TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQyNjA3M2JiLTllYWQtNGRmYy04MmU5LTY3NWYyNGFlZjQzOSIsImlzcyI6ImdwdGpyYyIsImlhdCI6MTczNDUxNDI0NiwiZXhwIjoxNzYxOTU1MjAwLCJpc19yZXZva2VkIjpmYWxzZSwiYWNjb3VudF9pZCI6ImIyNGJiZGEwLWY5YjEtNGFkNS1hNGU2LWYyYjE2MzA5ZGI5ZiIsInVzZXJuYW1lIjoiTWljaGVsZS5ST05DT0BlYy5ldXJvcGEuZXUiLCJwcm9qZWN0X2lkIjoiSU5GT1JNIiwiZGVwYXJ0bWVudCI6IkpSQy5FLjEiLCJxdW90YXMiOlt7Im1vZGVsX25hbWUiOiJncHQtNG8iLCJleHBpcmF0aW9uX2ZyZXF1ZW5jeSI6ImRhaWx5IiwidmFsdWUiOjQwMDAwMH0seyJtb2RlbF9uYW1lIjoiZ3B0LTM1LXR1cmJvLTExMDYiLCJleHBpcmF0aW9uX2ZyZXF1ZW5jeSI6ImRhaWx5IiwidmFsdWUiOjQwMDAwMH0seyJtb2RlbF9uYW1lIjoiZ3B0LTQtMTEwNiIsImV4cGlyYXRpb25fZnJlcXVlbmN5IjoiZGFpbHkiLCJ2YWx1ZSI6NDAwMDAwfV0sImFjY2Vzc19ncm91cHMiOlt7ImFjY2Vzc19ncm91cCI6ImdlbmVyYWwifV19.rMVr1vKb_HUvgowbeH8LhC9g7ZICcvWzDGgaY2yr-8o"
+with open('./data/gpt_token.json', 'r') as file:
+    config = json.load(file)
+    TOKEN = config['EMM_RETRIEVERS_OPENAI_API_KEY']
 
 
 client1 = OpenAI(
     api_key=TOKEN,
     base_url="https://api-gpt.jrc.ec.europa.eu/v1",
 )
+
+
 
 def ensemble_graph(row, max_retries=10):
     

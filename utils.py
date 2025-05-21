@@ -1,8 +1,56 @@
 import pandas as pd
+import numpy as np
+import time
 import pycountry
 from client_v1.formatting_utils import fixed_width_wrap, format_docs, format_doc_minimal
 import re
 import json
+from openai import OpenAI
+
+with open('./data/gpt_token.json', 'r') as file:
+    config = json.load(file)
+    TOKEN = config['EMM_RETRIEVERS_OPENAI_API_KEY']
+
+
+client1 = OpenAI(
+    api_key=TOKEN,
+    base_url="https://api-gpt.jrc.ec.europa.eu/v1",
+)
+
+#model = "nous-hermes-2-mixtral-8x7b-dpo"
+model = "llama-3.3-70b-instruct"
+
+def fact_check(disaster, month, year, location, page_content):
+    """
+    Checks if the document content is relevant to the specified disaster event using a language model.
+
+    :param disaster: Name of the disaster event
+    :param month: Month of the disaster event.
+    :param year: Year of the disaster event.
+    :param location: Specific location affected by the disaster.
+    :param page_content: The content of the document.
+    :return: "Yes" if relevant, otherwise "No".
+    """
+    # Construct the prompt for the LLM
+    prompt = (
+        f"Is the following document referring to the {disaster} disaster "
+        f"that occurred in {location} during {month} {year}? "
+        f"Please answer only with 'Yes' or 'No' without adding anything else.\n\n"
+        f"Document Content: {page_content}"
+    )
+
+    # Call the language model with the prompt
+    completion = client1.chat.completions.create(
+        model=model,  # Replace with the appropriate model for your use case
+        messages=[
+            {"role": "system", "content": "You are an expert in disaster event analysis."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0
+    )
+
+    #print(completion.choices[0].message.content.strip())
+    return completion.choices[0].message.content.strip()
 
 
 def extract_triplets(nested_list):
@@ -169,26 +217,49 @@ def generate_date_ranges(start_dt, num_weeks=4):
         date_ranges.append((start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d')))
     return date_ranges
 
-def process_documents(docs, iso2, country, format_fn=format_doc_minimal, **kwargs):
+
+
+def process_documents(docs, iso2, country, disaster, month, year, location, format_fn=format_doc_minimal, sleep_interval=1, **kwargs):
     """
     Filters and formats documents using specified criteria and formatting functions.
 
     :param docs: List of documents to process.
     :param iso2: ISO 2-letter country code for filtering.
     :param country: Country name to check in the title.
+    :param disaster: Name of the disaster event.
+    :param location: Specific location affected by the disaster.
     :param format_fn: Function to format documents.
+    :param sleep_interval: Time to sleep between fact_check calls to manage rate limits.
     :param kwargs: Additional arguments for the formatting function.
-    :return: Formatted string of filtered documents.
+    :return: Tuple of formatted string of filtered documents and count of relevant documents.
     """
-    # Apply the filtering criterion
+    
+    # Initial filtering based on country code and title
     filtered_docs = [
         entry for entry in docs
         if entry['metadata']['source']['country'] == iso2 or
            country in entry['metadata']['title']
     ]
+
+    relevant_docs = []
     
-    # Format the filtered documents
-    return format_docs(filtered_docs, doc_fn=format_fn, **kwargs)
+    # Further filter using the fact_check function
+    for entry in filtered_docs:
+        if fact_check(disaster, month, year, location, entry['page_content']) == "Yes":
+            #print(disaster, month, year, location)
+            #print(entry['page_content'])
+            relevant_docs.append(entry)
+        time.sleep(sleep_interval)  # Add a sleep interval to avoid hitting rate limits
+    
+    num_relevant_docs = len(relevant_docs)
+    print("Num filtered docs = ", num_relevant_docs)
+
+    # Format the relevant documents
+    formatted_docs = format_docs(relevant_docs, doc_fn=format_fn, **kwargs)
+    
+    return formatted_docs, num_relevant_docs
+
+
 
 def add_sections_as_columns(row, txt, graph):
     # Define the column names
@@ -236,16 +307,16 @@ def add_sections_as_columns(row, txt, graph):
 
     return row_df
 
+
 def clean_text(text):
-    # Convert to string and handle NaN values
     if pd.isna(text):
         return ""
     
     text = str(text)
-    
-    # Remove special characters and keep important numbers
-    cleaned_text = re.sub(r'([^\w\s]|\b\d+\b(?=\s|$))', '', text)
+    cleaned_text = re.sub(r'^[^\w]+|[^\w]+$', '', text)
+
     return cleaned_text.strip()
+
 
 def process_storyline(row):
     # Clean each relevant column in the row
@@ -271,8 +342,8 @@ def process_storyline(row):
     # Count occurrences of 'unknown' in any case
     unknown_count = combined_text.lower().count('unknown')
     
-    # Return the row if 'unknown' appears less than 3 times
-    if unknown_count < 3:
+    # Return the row if 'unknown' appears less than 5 times
+    if unknown_count < 5:
         return row
     else:
         return None
@@ -286,3 +357,91 @@ def custom_sum(x, y):
         return x
     else:
         return x + y
+
+
+def extract_disaster_info(disaster, month, year, country, formatted_docs):
+    """
+    Extracts specific disaster information from formatted documents using a language model
+    and ensures the JSON format is correct.
+
+    :param disaster: Name of the disaster event.
+    :param month: Month of the disaster event.
+    :param year: Year of the disaster event.
+    :param country: The country where the disaster occurred.
+    :param formatted_docs: The formatted content of the documents.
+    :return: A dictionary with extracted information or None if not available.
+    """
+    json_template = {
+        "People affected": None,
+        "Fatalities": None,
+        "Economic losses": None,
+        "Locations": None
+    }
+
+    # Construct the prompt for the LLM
+    prompt = (
+        f"You are an expert in disaster event analysis. Based on the content related to the {disaster} disaster "
+        f"that occurred in {country} during {month} {year}, please fill in the following JSON template. "
+        f"For 'Locations', list all mentioned cities or provinces only within {country}, ignoring any outside of {country}, and separate them by commas. "
+        f"For 'People affected', 'Fatalities', and 'Economic losses', return only the total amount according to the Document Content; do not include any additional words or text. "
+        f"Use 'None' for any field where the information is not available.\n\n"
+        f"Document Content: {formatted_docs}\n\n"
+        f"JSON Template:\n{json_template}"
+    )
+
+    # Call the language model with the prompt
+    completion = client1.chat.completions.create(
+        model=model,  # Replace with your model
+        messages=[
+            {"role": "system", "content": "You are an expert in disaster event analysis."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0
+    )
+
+    # Extract the response content
+    response_content = completion.choices[0].message.content.strip()
+
+    # Ensure JSON format by adding missing quotes to keys and string values
+    def ensure_json_format(content):
+        # Define expected keys
+        expected_keys = ["People affected", "Fatalities", "Economic losses", "Locations"]
+
+        # Regular expression pattern to find possible key-value pairs
+        key_value_pattern = re.compile(r'(\b(?:' + '|'.join(map(re.escape, expected_keys)) + r')\b)\s*:\s*([^,\}\n]+)', re.DOTALL)
+
+        def add_quotes_to_value(match):
+            key, value = match.groups()
+            # Check if value is not already quoted
+            if not (value.startswith('"') and value.endswith('"')):
+                # Add quotes around the value if it's not a number or None
+                if value.strip().lower() != 'none' and not re.match(r'^\d+(\.\d+)?$', value.strip()):
+                    value = f'"{value.strip()}"'
+            return f'"{key}": {value}'
+
+        # Add quotes to keys and string values
+        json_like_string = key_value_pattern.sub(add_quotes_to_value, content)
+        return json_like_string
+
+    # Process the response content to ensure JSON format
+    json_like_string = ensure_json_format(response_content)
+
+    # Use a regular expression to extract JSON from the processed content
+    json_pattern = re.compile(r'\{.*?\}', re.DOTALL)
+    match = json_pattern.search(json_like_string)
+    
+    if match:
+        try:
+            # Parse the extracted JSON
+            extracted_data = json.loads(match.group())
+            return extracted_data
+        except json.JSONDecodeError as e:
+            # Print the response for debugging purposes
+            print("JSON decoding failed. Error:", e)
+            print("Processed content:", match.group())
+            return None
+    else:
+        # Print the response for debugging purposes
+        print("No JSON found in the response. Processed content:", json_like_string)
+        return None
+
