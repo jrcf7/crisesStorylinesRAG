@@ -12,6 +12,7 @@ import pandas as pd
 import torch
 import os
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 os.environ['usr_tkn_consose_read'] = "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"
 os.environ['ie_model_id'] = 'roncmic/t5-base-disasters'
 inflect_engine = inflect.engine()
@@ -41,7 +42,7 @@ def extract_edge_and_clean(row, relations):
             row['edge'] = relation
     return row
 
-def generate_with_temperature(prompt, model, tokenizer, device, temperature=1.0, top_k=50, top_p=0.95, max_length=50):
+def generate_with_temperature(prompt, temperature=1.0, top_k=50, top_p=0.95, max_length=50):
     inputs = tokenizer(prompt, return_tensors='pt').to(device)
 
     outputs = model.generate(
@@ -59,9 +60,6 @@ def generate_with_temperature(prompt, model, tokenizer, device, temperature=1.0,
 def generate_new_relations(
     graph_df: pd.DataFrame,
     new_node: str,
-    tokenizer,
-    model,
-    device: Union[str, torch.device],
     max_combinations_fraction: float = 0.3,
     num_beams: int = 6,  # Note: Beams are ignored in sampling
     max_length: int = 50,
@@ -111,7 +109,7 @@ def generate_new_relations(
                     print("Generated Prompt:", prompt)
 
                 preds = generate_with_temperature(
-                    prompt, model, tokenizer, device, temperature, top_k, top_p, max_length
+                    prompt, temperature, top_k, top_p, max_length
                 )
 
                 if verbose:

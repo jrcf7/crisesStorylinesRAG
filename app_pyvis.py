@@ -255,8 +255,8 @@ def update_row_dropdown(disaster_type=None, country=None):
     if country:
         filtered_df = filtered_df[filtered_df['Country'] == country]
 
-    # Step 3: Generate the DisNo. choices based on the filtered DataFrame
-    choices = filtered_df['DisNo.'].tolist() if not filtered_df.empty else []
+    # Step 3: Generate and sort the DisNo. choices based on the filtered DataFrame
+    choices = sorted(filtered_df['DisNo.'].tolist()) if not filtered_df.empty else []
 
     # Add a placeholder option at the beginning
     choices = ["Select a Disaster Event"] + choices
@@ -265,6 +265,7 @@ def update_row_dropdown(disaster_type=None, country=None):
     
     # Return the update for the dropdown, defaulting to the placeholder
     return gr.update(choices=choices, value=choices[0] if choices else None)
+
 
 
 def display_info(selected_row_str, country):
@@ -445,7 +446,7 @@ def build_interface():
         # Update country choices based on selected disaster type
         disaster_type_dropdown.change(
             fn=lambda disaster_type: gr.update(
-                choices=[''] + df[df['Disaster Type'] == disaster_type]['Country'].unique().tolist(),
+                choices=[''] + sorted(df[df['Disaster Type'] == disaster_type]['Country'].unique().tolist()),
                 value=''
             ),
             inputs=disaster_type_dropdown,

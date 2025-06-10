@@ -9,7 +9,7 @@ from openai import OpenAI
 import geopandas as gpd
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
-
+import osmnx as osm
 
 world = gpd.read_file('./data/ne_110m_admin_0_countries.shp')
 
@@ -26,6 +26,29 @@ client1 = OpenAI(
 
 #model = "nous-hermes-2-mixtral-8x7b-dpo"
 model = "llama-3.3-70b-instruct"
+
+def geocode_emdat(location):
+    def process_geocoding(location_to_geocode):
+        try:
+            return osm.geocode_to_gdf(location_to_geocode)["geometry"].iloc[0]
+        except Exception:
+            return None
+
+    geocoded_location = process_geocoding(location)
+
+    if geocoded_location is None:
+        print(f"Error geocoding location '{location}'. Trying to correct with GPT-4.")
+        response = client1.chat.completions.create.ChatCompletion.create(
+            headers={"Authorization": f"Bearer {TOKEN}"},
+            model="gpt-4o",
+            stream=False,
+            messages=[{"role": "user", "content": f"Correct spelling or grammar or substitute with most commonly used location name by Google Maps, give me only the answer in the form 'Country, Location' filled with the corrected Country and Location: '{location}'"}]
+        )
+        corrected_location = response.choices[0].message.content.strip()
+        geocoded_location = process_geocoding(corrected_location)
+
+    return geocoded_location
+
 
 def get_country_boundary(country_name):
     # Filter the world GeoDataFrame for the country
