@@ -6,6 +6,13 @@ from client_v1.formatting_utils import fixed_width_wrap, format_docs, format_doc
 import re
 import json
 from openai import OpenAI
+import geopandas as gpd
+from shapely.geometry import Polygon
+from shapely.ops import unary_union
+
+
+world = gpd.read_file('./data/ne_110m_admin_0_countries.shp')
+
 
 with open('./data/gpt_token.json', 'r') as file:
     config = json.load(file)
@@ -19,6 +26,50 @@ client1 = OpenAI(
 
 #model = "nous-hermes-2-mixtral-8x7b-dpo"
 model = "llama-3.3-70b-instruct"
+
+def get_country_boundary(country_name):
+    # Filter the world GeoDataFrame for the country
+    country = world[world['NAME'] == country_name]
+    if not country.empty:
+        # Return the country's geometry
+        return country.geometry.iloc[0]
+    else:
+        # Return None if country not found
+        return None
+
+def get_geometries(row):
+    country = row['Country']
+    locations = row['Locations']
+    
+    # Return NaN if locations is NaN
+    if pd.isna(locations):
+        return None
+    
+    # Get the country's boundary
+    country_boundary = get_country_boundary(country)
+    
+    # If no country boundary is found, return None
+    if country_boundary is None:
+        return None
+    
+    locations_list = locations.split(', ')
+    
+    # Get polygons for each location, ignoring None results
+    polygons = [geocode_emdat(f"{country}, {location}") for location in locations_list]
+    polygons = [polygon for polygon in polygons if polygon is not None]
+    
+    # Filter polygons to remove those outside the country boundary
+    valid_polygons = [polygon for polygon in polygons if polygon.within(country_boundary)]
+    
+    # If there are no valid polygons, return None
+    if not valid_polygons:
+        return None
+    
+    # Combine them into a single geometry using unary_union
+    combined_geometry = unary_union(valid_polygons)
+    
+    return combined_geometry
+
 
 def fact_check(disaster, month, year, location, page_content):
     """
