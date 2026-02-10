@@ -122,13 +122,12 @@ Outputs are cleaned and standardized using `postproc.py` and `utils.py`, and sto
 
 1. **Set up the environment**
 
-```bash
 conda env create -f storylines-env.yml
 conda activate storylines-env
 
 
 
- ## Analysis and Reproducibility Notebooks
+## Analysis and Reproducibility Notebooks
 
 The repository includes three Jupyter notebooks that reproduce the main figures and analyses presented in the accompanying paper:
 
