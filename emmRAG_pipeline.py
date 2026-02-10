@@ -161,7 +161,7 @@ mnts = {
     "12": "December"
 }
 
-emdat = pd.read_csv("./data/adinet_disasters.csv")
+emdat = pd.read_excel("./data/input_emdat_1424.xlsx")
 cutoff_date = pd.to_datetime('2014-04-15', format='%Y-%m-%d')
 max_date = pd.to_datetime('2024-12-31', format='%Y-%m-%d')
 emdat['start_dt'] = pd.to_datetime(emdat['start_dt'])
@@ -348,5 +348,5 @@ for index, row in filtered_emdat.iterrows():
 
 if events:
     emdat2 = pd.concat(events)
-    emdat2.to_csv(os.path.join(output_csv_dir, f"adinet2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"), index=False)
-    print("Final data saved up to disaster num. =", emdat2.iloc[-1]["DisNo."], "File saved at:", os.path.join(output_csv_dir, f"adinet2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"))
+    emdat2.to_csv(os.path.join(output_csv_dir, f"emdat2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"), index=False)
+    print("Final data saved up to disaster num. =", emdat2.iloc[-1]["DisNo."], "File saved at:", os.path.join(output_csv_dir, f"emdat2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"))

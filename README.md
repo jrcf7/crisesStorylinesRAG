@@ -166,15 +166,21 @@ This interface is intended for exploratory analysis, demonstration, and stakehol
 
 ## Reproducibility and Archiving
 
-To ensure full reproducibility and long-term accessibility, the **entire GitHub repository** (including source code, notebooks, configuration files, and documentation) is archived on **Zenodo**, together with the input and output datasets used in the study.
+To ensure full reproducibility and long-term accessibility, the **entire GitHub repository** (including source code, notebooks, configuration files, and documentation) is archived on **Zenodo**, together with the input and output datasets used in the study. Additionally, the pipeline and outputs are accessible via:
+
+- **GitHub repository**: [https://github.com/jrcf7/crisesStorylinesRAG/tree/mib](https://github.com/jrcf7/crisesStorylinesRAG/tree/mib)  
+- **Hugging Face Space**: [https://huggingface.co/spaces/roncmic/crisesStorylinesRAG](https://huggingface.co/spaces/roncmic/crisesStorylinesRAG)
 
 The Zenodo archive includes:
-- The EM-DAT–derived input event list (`input_emdat_1424.xlsx`)
-- The full pipeline output with storylines and knowledge graphs (`DisasterStory.csv`)
-- The expert-annotated triplet validation dataset (`triplet_expert_val.xlsx`)
-- The complete source code and Conda environment specification
 
-This makes the project **self-contained** and independently reusable.
+- The EM-DAT–derived input event list (`input_emdat_1424.xlsx`)  
+- The full pipeline output with storylines and knowledge graphs (`DisasterStory.csv`)  
+  (also available via the JRC Open Data repository: [https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/ETOHA/storylines/DisasterStory.csv](https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/ETOHA/storylines/DisasterStory.csv))  
+- The expert-annotated triplet validation dataset (`triplet_expert_val.xlsx`)  
+- The workshop survey dataset with experts’ answers on knowledge graph evaluation (`survey.xlsx`)  
+- The complete source code and Conda environment specification  
+
+This ensures the project is **self-contained**, independently reusable, and provides multiple access points for both the pipeline and its generated outputs.
 
 ---
 
