@@ -70,8 +70,160 @@ This ensures interpretability and faithfulness of the main outputs, while enabli
 
 ## Pipeline Workflow (Implementation)
 
-The workflow is implemented in the main script: emmRAG_pipeline.py
+The workflow is implemented in the main script: `emmRAG_pipeline.py`
 
 
+The steps are:
+
+1. **Input events**:  
+   The default input is a structured EM-DAT–derived list of global disasters (2014–2024): ./data/input_emdat_1424.xlsx
    
+
+This file contains:
+
+- Disaster type  
+- Country  
+- Affected location  
+- Event start date  
+
+2. **News retrieval (RAG)**:  
+For each event, a semantic query is issued to EMM, for example: What are the latest developments on the {disaster} disaster occurred in {country}
+on {month} {year} that affected {location}? 
+
+
+
+Retrieved documents are filtered and cleaned to remove spurious or weakly related articles.
+
+3. **Storyline generation (LLM)**:  
+A first LLM call generates a structured storyline using a controlled prompt including:
+
+- Key information and severity  
+- Main drivers  
+- Impacts, exposure, and vulnerability  
+- Multi-hazard risks  
+- Best practices and recovery recommendations  
+
+The model is instructed to **only use retrieved evidence** and to mark missing details explicitly as *unknown*.
+
+4. **Knowledge graph generation (LLM)**:  
+A second LLM call converts the storyline into a causal knowledge graph using in-context learning (ICL), constrained to:
+
+- Two relation types only: `causes` and `prevents`  
+- Minimal, non-duplicated nodes  
+- Explicit drivers and impacts
+
+5. **Post-processing and storage**:  
+Outputs are cleaned and standardized using `postproc.py` and `utils.py`, and stored in: DisasterStory.csv 
+
+
+---
+
+## How to Run the Pipeline
+
+1. **Set up the environment**
+
+```bash
+conda env create -f storylines-env.yml
+conda activate storylines-env
+
+
+
+ ## Analysis and Reproducibility Notebooks
+
+The repository includes three Jupyter notebooks that reproduce the main figures and analyses presented in the accompanying paper:
+
+- **`1_Plot_Results.ipynb`**  
+  Reproduces the core descriptive results of the pipeline, including statistics on generated storylines and knowledge graphs.
+
+- **`2_Coverage_Biases.ipynb`**  
+  Analyzes temporal, spatial, and hazard-type coverage of the generated outputs, highlighting potential biases in news availability and retrieval.
+
+- **`3_Validation.ipynb`**  
+  Reproduces the expert validation analyses, including triplet precision, inter-annotator agreement (Krippendorff’s α, Cohen’s κ), and agreement distributions, as shown in the validation figures and tables of the paper.
+
+Together, these notebooks provide full transparency and reproducibility of the quantitative results reported in the manuscript.
+
+---
+
+## Interactive Visualization
+
+The repository also includes a lightweight interactive application for exploring generated storylines and knowledge graphs:
+
+- **`app_pyvis_new.py`**  
+  A Gradio-based web application for visualizing disaster storylines and their associated knowledge graphs using **PyVis**.
+
+The app allows users to:
+- Browse disaster events
+- Read generated storylines
+- Interactively explore causal knowledge graphs
+
+A live version of the application is publicly available on Hugging Face Spaces:
+
+👉 **https://huggingface.co/spaces/roncmic/crisesStorylinesRAG**
+
+This interface is intended for exploratory analysis, demonstration, and stakeholder engagement rather than large-scale processing.
+
+---
+
+## Reproducibility and Archiving
+
+To ensure full reproducibility and long-term accessibility, the **entire GitHub repository** (including source code, notebooks, configuration files, and documentation) is archived on **Zenodo**, together with the input and output datasets used in the study.
+
+The Zenodo archive includes:
+- The EM-DAT–derived input event list (`input_emdat_1424.xlsx`)
+- The full pipeline output with storylines and knowledge graphs (`DisasterStory.csv`)
+- The expert-annotated triplet validation dataset (`triplet_expert_val.xlsx`)
+- The complete source code and Conda environment specification
+
+This makes the project **self-contained** and independently reusable.
+
+---
+
+## Citation
+
+If you use this code, data, or outputs, please cite the following paper:
+
+> **Disaster Storylines and Knowledge Graphs from Global News with Large Language Models and Retrieval-Augmented Generation**  
+> Michele Ronco\*, Luca Bandelli, Lorenzo Bertolini, Sergio Consoli, Damien Delforge,  
+> Alessio Spadaro, Marco Verile, Christina Corbane  
+>  
+> *European Commission, Joint Research Centre (JRC), Ispra, Italy*  
+> *Engineering Ingegneria Informatica, Roma, Italy*  
+> *Institute of Health and Society (IRSS), UCLouvain, Belgium*  
+>  
+> \*Corresponding author: michele.ronco@ec.europa.eu  
+>  
+> *Manuscript under review.*
+
+A BibTeX entry will be added upon publication.
+
+ 
    
+  
+## Software Environment
+
+The pipeline is implemented in **Python 3.12** and designed to run within a Conda environment. Development and experiments were conducted using GPU acceleration, though most components can also run on CPU for smaller-scale use.
+
+Key software components include:
+
+- **LLMs & Retrieval-Augmented Generation**
+  - `transformers`, `accelerate`, `langchain`
+  - `openai`, `tiktoken`
+  - `torch` (with optional CUDA support), `deepspeed`, `bitsandbytes`
+
+- **Data processing & evaluation**
+  - `pandas`, `numpy`, `scikit-learn`, `scipy`
+  - `datasets`, `evaluate`, `bert-score`
+
+- **Knowledge graphs & NLP**
+  - `networkx`, `rdflib`, `pykeen`
+  - `nltk`, `sentencepiece`, `rapidfuzz`
+
+- **Geospatial processing**
+  - `geopandas`, `shapely`, `pyproj`, `rasterio`, `osmnx`
+
+- **Visualization & interfaces**
+  - `matplotlib`, `seaborn`, `plotly`, `pyvis`
+  - `jupyterlab`, `gradio`, `fastapi`
+
+The **complete list of dependencies and exact package versions** required to reproduce the environment is provided in the Conda environment file (`storylines-env.yml`) included in this repository and archived on Zenodo. This ensures full reproducibility of the pipeline and associated validation experiments.
