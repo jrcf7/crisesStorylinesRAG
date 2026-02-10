@@ -38,8 +38,7 @@ def geocode_emdat(location):
 
     if geocoded_location is None:
         print(f"Error geocoding location '{location}'. Trying to correct with GPT-4.")
-        response = client1.chat.completions.create.ChatCompletion.create(
-            headers={"Authorization": f"Bearer {TOKEN}"},
+        response = client1.chat.completions.create(
             model="gpt-4o",
             stream=False,
             messages=[{"role": "user", "content": f"Correct spelling or grammar or substitute with most commonly used location name by Google Maps, give me only the answer in the form 'Country, Location' filled with the corrected Country and Location: '{location}'"}]

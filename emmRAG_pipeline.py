@@ -15,11 +15,7 @@ model = "llama-3.3-70b-instruct"
 
 def gpt_graph(prompt):
     completion = client1.chat.completions.create(
-<<<<<<< HEAD
         model=model,  # Replace with the appropriate model for your use case
-=======
-        model="llama-3.3-70b-instruct",  # Replace with the appropriate model for your use case
->>>>>>> 6691c5dce25669cfbbbec4df3917bf350defbdd9
         messages=[
         {"role": "system", "content": "You are a disaster manager expert in risk dynamics."},
         {
@@ -35,7 +31,9 @@ def gpt_graph(prompt):
 
 
 apindex = {"2014":'mine_e_emb16-e1f7_prod4_2014', "2015":'mine_e_emb16-e1f7_prod4_2015', "2016":'mine_e_emb16-e1f7_prod4_2016', "2017":'mine_e_emb16-e1f7_prod4_2017',
-           "2018":'mine_e_emb16-e1f7_prod4_2018', "2019":'mine_e_emb16-e1f7_prod4_2019', "2020":'mine_e_emb16-e1f7_prod4_2020'}
+           "2018":'mine_e_emb16-e1f7_prod4_2018', "2019":'mine_e_emb16-e1f7_prod4_2019', "2020":'mine_e_emb16-e1f7_prod4_2020', 
+           "2021":'mine_e_emb16-e1f7_prod4_2021', "2022":'mine_e_emb16-e1f7_prod4_2022', 
+           "2023":'mine_e_emb16-e1f7_prod4_2023', "2024":'mine_e_emb16-e1f7_prod4_2024'}
 
 EMM_RETRIEVERS_API_BASE="https://api.emm4u.eu/retrievers/v1"
 with open('./data/emm_token.json', 'r') as file:
@@ -66,18 +64,6 @@ client1 = OpenAI(
     api_key=EMM_RETRIEVERS_OPENAI_API_KEY,
     base_url="https://api-gpt.jrc.ec.europa.eu/v1",
 )
-
-
-# Read EM-DAT dataset containing disaster events 
-emdat = pd.read_excel("./data/public_emdat_1419.xlsx")
-
-#f = open('./data/skipped_rows.txt')
-#disno = f.read().splitlines()
-#f.close()
-#emdat = emdat[emdat["DisNo."].isin(disno)]
-
-print(len(emdat))
-
 
 
 def extract_disaster_info(disaster, month, year, country, formatted_docs):
@@ -148,22 +134,17 @@ def parse_factsheet(response_content):
 
 
 
-
-emdat = pd.read_excel("./data/public_emdat_1419.xlsx")
-
 #f = open('./data/skipped_rows.txt')
 #disno = f.read().splitlines()
 #f.close()
 #emdat = emdat[emdat["DisNo."].isin(disno)]
 
-print(len(emdat))
-
-emdat['Start Month'] = emdat['Start Month'].fillna(1).astype(int)
-emdat['Start Day'] = emdat['Start Day'].fillna(1).astype(int)
-emdat['start_dt'] = pd.to_datetime(emdat['Start Year'].astype(str) + '-' +
-                                   emdat['Start Month'].astype(str).str.zfill(2) + '-' +
-                                   emdat['Start Day'].astype(str).str.zfill(2))
-emdat['start_dt'] = emdat['start_dt'].dt.strftime('%Y-%m-%d')
+#emdat['Start Month'] = emdat['Start Month'].fillna(1).astype(int)
+#emdat['Start Day'] = emdat['Start Day'].fillna(1).astype(int)
+#emdat['start_dt'] = pd.to_datetime(emdat['Start Year'].astype(str) + '-' +
+#                                   emdat['Start Month'].astype(str).str.zfill(2) + '-' +
+#                                   emdat['Start Day'].astype(str).str.zfill(2))
+#emdat['start_dt'] = pd.to_datetime(emdat['start_dt']).dt.strftime('%Y-%m-%d')
 
 mnts = {
     "01": "January",
@@ -180,23 +161,26 @@ mnts = {
     "12": "December"
 }
 
-
+emdat = pd.read_csv("./data/adinet_disasters.csv")
 cutoff_date = pd.to_datetime('2014-04-15', format='%Y-%m-%d')
+max_date = pd.to_datetime('2024-12-31', format='%Y-%m-%d')
 emdat['start_dt'] = pd.to_datetime(emdat['start_dt'])
+print(len(emdat))
 filtered_emdat = emdat[emdat["start_dt"] >= cutoff_date]
+filtered_emdat = filtered_emdat[filtered_emdat["start_dt"] <= max_date]
 filtered_emdat["start_dt"] = filtered_emdat["start_dt"].dt.strftime('%Y-%m-%d')
 
 folder_path = './data'
 files = os.listdir(folder_path)
 csv_files = [f for f in files if f.startswith('emdat2_') and f.endswith('.csv')]
 dataframes = []
-for file in csv_files:
-    file_path = os.path.join(folder_path, file)
-    df = pd.read_csv(file_path)
-    dataframes.append(df)
+#for file in csv_files:
+#    file_path = os.path.join(folder_path, file)
+#    df = pd.read_csv(file_path)
+#    dataframes.append(df)
 
-emdats = pd.concat(dataframes, ignore_index=True)
-filtered_emdat = filtered_emdat[~filtered_emdat['DisNo.'].isin(emdats['DisNo.'])]
+#emdats = pd.concat(dataframes, ignore_index=True)
+#filtered_emdat = filtered_emdat[~filtered_emdat['DisNo.'].isin(emdats['DisNo.'])]
 print(len(filtered_emdat))
 
 output_csv_dir = "./data/"
@@ -214,32 +198,44 @@ def save_and_log_skipped(events, row):
     with open(skipped_rows_file, "a") as f:
         f.write(f"{row['DisNo.']}\n")
 
+
 for index, row in filtered_emdat.iterrows():
-    #i+=1
-    print("Processing Disaster Num = ", row["DisNo."])  
+    print("Processing Disaster Num =", row["DisNo."])
+    
     disaster = row["Disaster Type"]
     country = row["Country"]
     start_dt = row['start_dt']
-    TEST_INDEX = apindex[start_dt.split("-")[0]]
-    #end_dt = (pd.to_datetime(start_dt) + pd.Timedelta(weeks=1)).strftime('%Y-%m-%d')
     location = row["Location"]
     iso2 = iso3_to_iso2(row['ISO'])
-    start_end_dates = generate_date_ranges(start_dt, num_weeks=4)
-    month = mnts[start_dt.split("-")[1]]
-    year = int(start_dt.split("-")[0])
-
-
-    EXAMPLE_QUESTION = f"What are the latest developments on the {disaster} disaster occurred in {country} on {month} {year} that affected {location}?"
-    #print(EXAMPLE_QUESTION)
     
-    all_documents = []  # List to store all retrieved documents
-    for start_dt, end_dt in start_end_dates:
-        #print("start : ", start_dt, ", end : ", end_dt)
-        st = pd.to_datetime(start_dt)
-        en = pd.to_datetime(end_dt)
-        if en > pd.Timestamp(year=st.year, month=12, day=27):
-            print("End of Year!")
-            TEST_INDEX = apindex[str(st.year+1)]
+    month = pd.to_datetime(start_dt).strftime('%B')
+    year = pd.to_datetime(start_dt).year
+    
+    # Check if start year has an available index
+    year_str = str(year)
+    if year_str not in apindex:
+        print(f"No index available for year {year}, skipping disaster {row['DisNo.']}")
+        continue
+    TEST_INDEX = apindex[year_str]
+    
+    # Generate 4-week date ranges
+    start_end_dates = generate_date_ranges(start_dt, num_weeks=4)
+    
+    EXAMPLE_QUESTION = (
+        f"What are the latest developments on the {disaster} disaster occurred in {country} "
+        f"on {month} {year} that affected {location}?"
+    )
+    
+    all_documents = []  # Store retrieved documents
+    for start_dt_range, end_dt_range in start_end_dates:
+        st = pd.to_datetime(start_dt_range)
+        en = pd.to_datetime(end_dt_range)
+        
+        # Cap end date at 2024-12-31
+        if en > max_date:
+            en = max_date
+            print(f"End date capped at {max_date} for disaster {row['DisNo.']}")
+        
         try:
             response = client.post(
                 "/r/rag-minimal/query",
@@ -251,33 +247,28 @@ for index, row in filtered_emdat.iterrows():
                     "filter": {
                         "max_chunk_no": 1,
                         "min_chars": 100,
-                        "start_dt": start_dt,
-                        "end_dt": end_dt,
-                    # "language": ["en", "fr", "es"],
+                        "start_dt": st.strftime('%Y-%m-%d'),
+                        "end_dt": en.strftime('%Y-%m-%d'),
+                        # "language": ["en", "fr", "es"],  # optional
                     },
                 },
                 timeout=30.0
             )
-
-            response.raise_for_status()  # Ensure the request was successful
-            search_resp = response.json()
-            documents = search_resp["documents"]
-            all_documents.extend(documents)  # Append retrieved documents
             
-        except (ReadTimeout, httpx.HTTPStatusError, Exception) as e:
-            print(f"An error occurred: {e}")
-            #save_and_log_skipped(events, row)
-            #events = []
-            break  
+            response.raise_for_status()
+            search_resp = response.json()
+            documents = search_resp.get("documents", [])
+            all_documents.extend(documents)
+        
+        except Exception as e:
+            print(f"An error occurred while querying documents for disaster {row['DisNo.']}: {e}")
+            break  # skip to next disaster if error occurs
     
     #print(f"Total documents retrieved: {len(all_documents)}")
         
     #docs = retriever.invoke(EXAMPLE_QUESTION)
-<<<<<<< HEAD
-    llm_model = JRCChatOpenAI(model=model, 
-=======
-    llm_model = JRCChatOpenAI(model="llama-3.3-70b-instruct",
->>>>>>> 6691c5dce25669cfbbbec4df3917bf350defbdd9
+
+    llm_model = JRCChatOpenAI(model=model,
                           api_key=settings.OPENAI_API_KEY,
                           base_url=settings.OPENAI_API_BASE_URL)
 
@@ -357,5 +348,5 @@ for index, row in filtered_emdat.iterrows():
 
 if events:
     emdat2 = pd.concat(events)
-    emdat2.to_csv(os.path.join(output_csv_dir, f"emdat2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"), index=False)
-    print("Final data saved up to disaster num. =", emdat2.iloc[-1]["DisNo."], "File saved at:", os.path.join(output_csv_dir, f"emdat2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"))
+    emdat2.to_csv(os.path.join(output_csv_dir, f"adinet2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"), index=False)
+    print("Final data saved up to disaster num. =", emdat2.iloc[-1]["DisNo."], "File saved at:", os.path.join(output_csv_dir, f"adinet2_{emdat2.iloc[-1]['DisNo.'].replace('-', '')}.csv"))
