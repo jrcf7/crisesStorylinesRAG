@@ -10,6 +10,11 @@ import geopandas as gpd
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 import osmnx as osm
+import networkx as nx
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+import textwrap
+
 
 world = gpd.read_file('./data/ne_110m_admin_0_countries.shp')
 
@@ -518,3 +523,229 @@ def extract_disaster_info(disaster, month, year, country, formatted_docs):
         print("No JSON found in the response. Processed content:", json_like_string)
         return None
 
+
+def plot_cgraph(kg_df):
+    # Create a directed graph from a dataframe
+    G = nx.from_pandas_edgelist(kg_df, "source", "target", edge_attr=True, create_using=nx.MultiDiGraph())
+
+    # Define a color mapping for edge types
+    edge_colors_dict = {
+        "causes": "red",
+        "prevents": "green",
+    }
+
+    # Extract the colors for each edge in the graph based on the 'edge' attribute
+    edge_color_list = [edge_colors_dict[G[u][v][key]['edge']] for u, v, key in G.edges(keys=True)]
+
+    # Draw the graph
+    plt.figure(figsize=(16, 16))  # Increase the figure size
+
+    # Compute the spring layout
+    pos = nx.spring_layout(G, k=2, iterations=100)  # Adjust k value for more spacing
+
+    # Draw nodes
+    nx.draw_networkx_nodes(G, pos, node_color='skyblue', node_size=8500, alpha=0.7)  # Increased size and adjusted transparency
+
+    # Draw edges with arrows and custom styling
+    nx.draw_networkx_edges(
+        G, pos,
+        edge_color=edge_color_list,
+        arrows=True,
+        arrowsize=20,
+        width=2,
+        connectionstyle='arc3,rad=0.1',
+        arrowstyle='-|>',  # Use a different arrow style
+        min_target_margin=46  # Add margin to ensure arrows stop at node borders
+    )
+
+    # Preprocess node labels to insert line breaks for long labels
+    labels_with_linebreaks = {node: '\n'.join(node.split(' ')) for node in G.nodes()}
+
+    # Define node label options to prevent overlap
+    node_label_options = {
+        'font_size': 16,  # Increased font size
+        'font_weight': 'bold',
+        'verticalalignment': 'center',
+        'horizontalalignment': 'center'
+    }
+
+    # Draw node labels with the modified labels
+    nx.draw_networkx_labels(G, pos, labels=labels_with_linebreaks, **node_label_options)
+
+    # Create a legend for the edge colors
+    legend_elements = [Line2D([0], [0], color=color, label=edge_type, lw=2) for edge_type, color in edge_colors_dict.items()]
+    plt.legend(handles=legend_elements, loc='best', fontsize=22)  # Increased legend font size
+
+    # Set the aspect ratio of the plot to equal and adjust margins
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.margins(x=0.1, y=0.1)
+
+    # Turn off the axis lines and labels
+    plt.axis('off')
+
+    # Show the plot with a tight layout
+    plt.tight_layout()
+
+    # Save the plot as a PNG image
+    plt.savefig("knowledge_graph.png", format="PNG", bbox_inches='tight', dpi=500)
+
+    # Display the plot
+    plt.show()
+
+
+
+# --------------------------------------------------------------
+# Helper – strip asterisks from a string
+# --------------------------------------------------------------
+def _strip_asterisks(txt) -> str:
+    """Remove every ``*`` from *txt* (handles NaN safely)."""
+    if pd.isna(txt):
+        return "‑"
+    return re.sub(r"\*", "", str(txt))
+
+
+# --------------------------------------------------------------
+# Factsheet – cleaned text, bold titles, no overlap
+# --------------------------------------------------------------
+def plot_factsheet_clean(
+    em: pd.DataFrame,
+    disno: str,
+    fact_columns: list | None = None,
+    wrap_width: int = 45,
+    figsize: tuple = (8, 11),                 # portrait rectangle
+    panel_bg: str = "#f0f0f0",                # light‑grey background
+    panel_edge: str = "#cccccc",
+    title_fontsize: int = 14,
+    value_fontsize: int = 12,
+    extra_gap: float = 0.09,                 # extra space between sections (axes fraction)
+    save_path: str | None = None,
+):
+    """
+    Create a vertical factsheet for a given disaster (DisNo.).
+    * Column names are rendered **bold**.
+    * All asterisk characters are removed from the values.
+    * The whole box has a light‑grey background.
+    * Vertical spacing is computed dynamically so that long paragraphs
+      never overwrite the next section.
+    Returns the Matplotlib ``Figure`` object.
+    """
+    # ------------------------------------------------------------------
+    # 1️⃣  Which columns to show?
+    # ------------------------------------------------------------------
+    default_cols = [
+        "key information",
+        "severity",
+        "key drivers",
+        "main impacts, exposure, and vulnerability",
+        "likelihood of multi-hazard risks",
+        "best practices for managing this risk",
+        "recommendations and supportive measures for recovery",
+    ]
+    if fact_columns is None:
+        fact_columns = default_cols
+
+    # keep only those that exist in the DataFrame
+    fact_columns = [c for c in fact_columns if c in em.columns]
+    if not fact_columns:
+        raise ValueError("None of the requested fact‑sheet columns exist in `em`.")
+
+    # ------------------------------------------------------------------
+    # 2️⃣  Pull the row that matches the disaster id
+    # ------------------------------------------------------------------
+    try:
+        fact_row = em.loc[em["DisNo."] == disno, fact_columns].iloc[0]
+    except IndexError:
+        raise ValueError(f"DisNo. '{disno}' not found in the supplied `em` DataFrame.")
+
+    # ------------------------------------------------------------------
+    # 3️⃣  Prepare the figure / axes
+    # ------------------------------------------------------------------
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.axis("off")                     # hide ticks / spines
+
+    # ------------------------------------------------------------------
+    # 4️⃣  Some geometry helpers (convert font size → axes‑fraction height)
+    # ------------------------------------------------------------------
+    # Height of the figure in inches
+    fig_h_in = figsize[1]
+
+    # Approximate height of one line of text in axes fraction.
+    #   (fontsize points) / (72 points per inch) = inches of line height
+    #   divide by figure height (in inches) → fraction of the axes.
+    line_height = (value_fontsize / 72) / fig_h_in
+
+    # Title line is a little larger
+    title_line_height = (title_fontsize / 72) / fig_h_in
+
+    # Starting vertical position (top of the axes)
+    cur_y = 0.98          # a little below the very top (so the box edge is visible)
+
+    # ------------------------------------------------------------------
+    # 5️⃣  Draw each section (title in bold, value below)
+    # ------------------------------------------------------------------
+    left_margin = 0.02    # left‑hand margin inside the axes (fraction)
+
+    for col in fact_columns:
+        # ---- title (bold) -------------------------------------------------
+        ax.text(
+            left_margin,
+            cur_y,
+            col.title(),
+            fontsize=title_fontsize,
+            fontweight="bold",
+            verticalalignment="top",
+            horizontalalignment="left",
+            color="black",
+        )
+        cur_y -= title_line_height + extra_gap           # move below the title
+
+        # ---- value (cleaned, wrapped) ------------------------------------
+        raw_val = fact_row[col]
+        cleaned = _strip_asterisks(raw_val)
+        wrapped = textwrap.fill(cleaned, width=wrap_width)
+
+        # Number of lines the wrapped text occupies
+        n_lines = wrapped.count("\n") + 1
+
+        ax.text(
+            left_margin,
+            cur_y,
+            wrapped,
+            fontsize=value_fontsize,
+            verticalalignment="top",
+            horizontalalignment="left",
+            color="black",
+        )
+
+        # Move the cursor down for the next *title*.
+        #   – value part occupies n_lines * line_height
+        #   – add a small gap after the block
+        cur_y -= n_lines * line_height + extra_gap
+
+    # ------------------------------------------------------------------
+    # 6️⃣  Draw the surrounding rounded box (light‑grey background)
+    # ------------------------------------------------------------------
+    # The invisible text trick attaches a bbox that covers the whole axes.
+    ax.text(
+        0,
+        0,
+        "",
+        bbox=dict(
+            facecolor=panel_bg,
+            edgecolor=panel_edge,
+            boxstyle="round,pad=0.8",
+            linewidth=1,
+        ),
+        transform=ax.transAxes,
+        zorder=-1,
+    )
+
+    # ------------------------------------------------------------------
+    # 7️⃣  Save / show
+    # ------------------------------------------------------------------
+    if save_path is None:
+        save_path = f"factsheet_{disno}.png"
+
+    fig.savefig(save_path, format="PNG", bbox_inches="tight", dpi=500)
+    plt.show()
+    return fig
