@@ -110,7 +110,7 @@ print(format_docs(documents, fixed_width=True))
 
 from client_v1.jrc_openai import JRCChatOpenAI
 
-llm_model = JRCChatOpenAI(model="llama-3.1-70b-instruct", openai_api_key=settings.OPENAI_API_KEY.get_secret_value(), openai_api_base=settings.OPENAI_API_BASE_URL)
+llm_model = JRCChatOpenAI(model="llama-3.3-70b-instruct", openai_api_key=settings.OPENAI_API_KEY.get_secret_value(), openai_api_base=settings.OPENAI_API_BASE_URL)
 
 resp = llm_model.invoke("What is the JRC?")
 print(resp.content)

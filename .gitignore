@@ -1,5 +1,5 @@
-
-
+/data/
+/plots/
 
 .idea/
 
@@ -105,3 +105,4 @@ __pycache__
 .Rproj.user
 
 /bin/
+.ipynb_checkpoints/
